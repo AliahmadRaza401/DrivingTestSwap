@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../core/constants/app_assets.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/user_preferences_service.dart';
+import '../../core/utils/toast_util.dart';
 import '../../routes/app_routes.dart';
 
 class LoginPage extends StatefulWidget {
@@ -14,6 +18,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -22,9 +27,38 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _onLogin() {
-    if (_formKey.currentState?.validate() ?? false) {
+  Future<void> _onLogin() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _loading = true);
+    final error = await AuthService.signIn(
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (error != null) {
+      ToastUtil.error(error);
+      return;
+    }
+    final profile = await AuthService.getCurrentUserProfile();
+    if (profile != null) {
+      await UserPreferencesService.saveUserAndLoginState(
+        uid: profile['uid']!,
+        email: profile['email']!,
+        fullName: profile['fullName'] ?? '',
+        dateOfBirth: profile['dateOfBirth'] ?? '',
+      );
+    }
+    final termsAlreadyResponded = await UserPreferencesService.hasTermsBeenResponded();
+    if (!termsAlreadyResponded) {
       Get.offAllNamed(AppRoutes.terms);
+      return;
+    }
+    final hasSubscription = await AuthService.hasActiveSubscription();
+    if (hasSubscription) {
+      Get.offAllNamed(AppRoutes.home);
+    } else {
+      Get.offAllNamed(AppRoutes.choosePlan);
     }
   }
 
@@ -58,7 +92,9 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+                _buildHeader(),
+                const SizedBox(height: 36),
                 _buildLabel('Email Address'),
                 const SizedBox(height: 6),
                 TextFormField(
@@ -85,7 +121,7 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   height: 54,
                   child: FilledButton(
-                    onPressed: _onLogin,
+                    onPressed: _loading ? null : _onLogin,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.textOnPrimary,
@@ -93,10 +129,19 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                    ),
+                    child: _loading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Login',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -129,6 +174,49 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Image.asset(
+          AppAssets.logo,
+          fit: BoxFit.contain,
+          width: 120,
+          height: 120,
+          errorBuilder: (_, __, ___) => Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.swap_horiz_rounded, size: 44, color: AppColors.primary),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Welcome back',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Log in to find your perfect test date swap',
+          style: TextStyle(
+            fontSize: 15,
+            color: AppColors.textSecondary,
+            height: 1.4,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 

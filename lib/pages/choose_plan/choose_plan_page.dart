@@ -1,6 +1,10 @@
+import 'package:drivingtestswap/core/services/auth_service.dart';
+import 'package:drivingtestswap/core/services/stripe_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/toast_util.dart';
 import '../../routes/app_routes.dart';
 
 class ChoosePlanPage extends StatefulWidget {
@@ -12,6 +16,18 @@ class ChoosePlanPage extends StatefulWidget {
 
 class _ChoosePlanPageState extends State<ChoosePlanPage> {
   int _selectedIndex = 1; // 3 Months default
+  SubscriptionStatus? _subscriptionStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSubscriptionStatus();
+  }
+
+  Future<void> _loadSubscriptionStatus() async {
+    final status = await AuthService.getSubscriptionStatus();
+    if (mounted) setState(() => _subscriptionStatus = status);
+  }
 
   static const List<_PlanData> _plans = [
     _PlanData(
@@ -21,6 +37,8 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
       priceLabel: '£4.99/mo',
       price: '£4.99',
       period: '/month',
+      amountForStripe: '4.99',
+      currency: 'gbp',
       features: [
         'Instant test swap alerts',
         'Search by location & date',
@@ -37,6 +55,8 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
       priceLabel: '£4.33/mo',
       price: '£12.99',
       period: '/3 months',
+      amountForStripe: '12.99',
+      currency: 'gbp',
       features: [
         'Instant test swap alerts',
         'Search by location & date',
@@ -54,6 +74,8 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
       priceLabel: '£4.17/mo',
       price: '£24.99',
       period: '/6 months',
+      amountForStripe: '24.99',
+      currency: 'gbp',
       features: [
         'Instant test swap alerts',
         'Search by location & date',
@@ -66,8 +88,41 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
     ),
   ];
 
-  void _onContinue() {
-    Get.offAllNamed(AppRoutes.home);
+  void _onContinue() async {
+    final plan = _plans[_selectedIndex];
+    final stripeController = Get.put(StripePaymentController());
+    stripeController.isLoading.value = true;
+    try {
+      await stripeController.initPaymentSheet(
+        amount: plan.amountForStripe,
+        currency: plan.currency,
+        merchantName: 'Driving Test Swap',
+      );
+      if (!mounted) return;
+      stripeController.isLoading.value = false;
+      await stripeController.presentPaymentSheet();
+      if (!mounted) return;
+      final months = plan.id == 'monthly' ? 1 : plan.id == '3months' ? 3 : 6;
+      final now = DateTime.now();
+      final expiresAt = DateTime(now.year, now.month + months, now.day, now.hour, now.minute, now.second);
+      await AuthService.saveUserSubscription(
+        planId: plan.id,
+        planTitle: plan.title,
+        price: plan.price,
+        period: plan.period,
+        expiresAt: expiresAt,
+      );
+      if (!mounted) return;
+      ToastUtil.success('Congratulations! Your subscription is active.');
+      Get.offAllNamed(AppRoutes.home);
+    } on StripeException catch (e) {
+      stripeController.isLoading.value = false;
+      if (e.error.code == FailureCode.Canceled) return;
+      ToastUtil.error(e.error.localizedMessage ?? 'Payment failed');
+    } catch (e) {
+      stripeController.isLoading.value = false;
+      ToastUtil.error(e.toString());
+    }
   }
 
   void _onPublicView() {
@@ -90,6 +145,10 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
                 child: Column(
                   children: [
                     const SizedBox(height: 8),
+                    if (_subscriptionStatus != null) ...[
+                      _buildSubscriptionStatusCard(),
+                      const SizedBox(height: 16),
+                    ],
                     ...List.generate(_plans.length, (index) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -159,6 +218,75 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
                     fontSize: 14,
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubscriptionStatusCard() {
+    final s = _subscriptionStatus!;
+    final expiryText = s.expiresAt != null
+        ? '${s.expiresAt!.day.toString().padLeft(2, '0')}/${s.expiresAt!.month.toString().padLeft(2, '0')}/${s.expiresAt!.year}'
+        : '—';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.card_membership_rounded, color: AppColors.primary, size: 26),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your subscription',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  s.planTitle,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Expires: $expiryText',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -481,6 +609,8 @@ class _PlanData {
     required this.priceLabel,
     required this.price,
     required this.period,
+    required this.amountForStripe,
+    required this.currency,
     required this.features,
     required this.popular,
     required this.savePercent,
@@ -493,6 +623,8 @@ class _PlanData {
   final String priceLabel;
   final String price;
   final String period;
+  final String amountForStripe;
+  final String currency;
   final List<String> features;
   final bool popular;
   final int? savePercent;

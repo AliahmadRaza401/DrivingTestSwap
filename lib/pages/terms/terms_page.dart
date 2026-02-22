@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../core/services/user_preferences_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../routes/app_routes.dart';
 
@@ -19,11 +20,13 @@ class _TermsPageState extends State<TermsPage> {
     super.dispose();
   }
 
-  void _onDecline() {
+  Future<void> _onDecline() async {
+    await UserPreferencesService.setTermsResponded();
     Get.back();
   }
 
-  void _onAccept() {
+  Future<void> _onAccept() async {
+    await UserPreferencesService.setTermsResponded();
     Get.offAllNamed(AppRoutes.choosePlan);
   }
 
@@ -137,7 +140,7 @@ class _TermsPageState extends State<TermsPage> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _onDecline,
+                    onPressed: () => _onDecline(),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
@@ -152,7 +155,7 @@ class _TermsPageState extends State<TermsPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: FilledButton(
-                    onPressed: _onAccept,
+                    onPressed: () => _onAccept(),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.textOnPrimary,

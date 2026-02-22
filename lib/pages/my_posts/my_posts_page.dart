@@ -1,38 +1,29 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/services/post_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/toast_util.dart';
+import '../post_availability/post_availability_page.dart';
 
 class MyPostsPage extends StatelessWidget {
   const MyPostsPage({super.key});
 
-  static const List<_PostItem> _posts = [
-    _PostItem(
-      initials: 'A',
-      name: 'Alex',
-      joined: 'Joined Jan 2026 • 2h ago',
-      location: 'Birmingham',
-      distance: '5.2 miles away',
-      date: '10 Mar',
-      time: '09:15',
-    ),
-    _PostItem(
-      initials: 'A',
-      name: 'Alex',
-      joined: 'Joined Jan 2026 • 2h ago',
-      location: 'Birmingham (South Yardley)',
-      distance: '4.2 miles away',
-      date: '10 Mar',
-      time: '09:15',
-    ),
-    _PostItem(
-      initials: 'A',
-      name: 'Alex',
-      joined: 'Joined Jan 2026 • 2h ago',
-      location: 'South Hampton',
-      distance: '6.2 miles away',
-      date: '10 Mar',
-      time: '09:15',
-    ),
-  ];
+  static String _errorMessage(Object e) {
+    final s = e.toString();
+    if (s.startsWith('Exception: ')) return s.substring(11);
+    return s;
+  }
+
+  static String _timeAgo(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,11 +58,137 @@ class MyPostsPage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                itemCount: _posts.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 14),
-                itemBuilder: (context, index) => _PostCard(item: _posts[index]),
+              child: StreamBuilder<List<SwapPost>>(
+                stream: PostService.streamMyPosts(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    developer.log('MyPosts stream error', name: 'MyPostsPage', error: snapshot.error, stackTrace: snapshot.stackTrace);
+                    final msg = PostService.userFriendlyPostError(snapshot.error!);
+                    final indexUrl = PostService.getIndexCreationUrlFromError(snapshot.error!);
+                    final isBuilding = PostService.isIndexBuildingError(snapshot.error!);
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      ToastUtil.error(msg);
+                    });
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                            const SizedBox(height: 12),
+                            Text(
+                              isBuilding ? 'Index building' : 'Failed to load posts',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              msg,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                            ),
+                            if (indexUrl != null) ...[
+                              const SizedBox(height: 20),
+                              FilledButton.icon(
+                                onPressed: () => launchUrl(Uri.parse(indexUrl), mode: LaunchMode.externalApplication),
+                                icon: const Icon(Icons.open_in_new, size: 20),
+                                label: Text(isBuilding ? 'Check status' : 'Create index'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.textOnPrimary,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final posts = snapshot.data ?? [];
+                  if (posts.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.description_outlined, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.5)),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No posts yet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Post your test availability to the noticeboard so others can swap with you.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    itemCount: posts.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 14),
+                    itemBuilder: (context, index) {
+                      final post = posts[index];
+                      return _PostCard(
+                        post: post,
+                        timeAgo: _timeAgo(post.createdAt),
+                        onEdit: () async {
+                          try {
+                            final result = await Get.to<bool>(() => PostAvailabilityPage(editPost: post));
+                            if (result == true) ToastUtil.success('Post updated');
+                          } catch (e, st) {
+                            developer.log('Edit post failed', name: 'MyPostsPage', error: e, stackTrace: st);
+                            ToastUtil.error(_errorMessage(e));
+                          }
+                        },
+                        onDelete: () async {
+                          final confirm = await Get.dialog<bool>(
+                            AlertDialog(
+                              title: const Text('Delete post?'),
+                              content: const Text('This post will be removed from the noticeboard.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Get.back(result: false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Get.back(result: true),
+                                  child: Text('Delete', style: TextStyle(color: AppColors.error)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            try {
+                              await PostService.deletePost(post.id);
+                              ToastUtil.success('Post deleted');
+                            } catch (e, st) {
+                              developer.log('Delete post failed', name: 'MyPostsPage', error: e, stackTrace: st);
+                              ToastUtil.error(_errorMessage(e));
+                            }
+                          }
+                        },
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ],
@@ -82,12 +199,22 @@ class MyPostsPage extends StatelessWidget {
 }
 
 class _PostCard extends StatelessWidget {
-  const _PostCard({required this.item});
+  const _PostCard({
+    required this.post,
+    required this.timeAgo,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
-  final _PostItem item;
+  final SwapPost post;
+  final String timeAgo;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
+    final location = post.testCentre;
+    final distance = post.preferredArea.isNotEmpty ? post.preferredArea : null;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -112,7 +239,7 @@ class _PostCard extends StatelessWidget {
                 radius: 22,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.2),
                 child: Text(
-                  item.initials,
+                  post.creatorInitials,
                   style: const TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.bold,
@@ -126,7 +253,7 @@ class _PostCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.name,
+                      post.creatorName,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -134,7 +261,7 @@ class _PostCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      item.joined,
+                      'Posted $timeAgo',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -142,6 +269,14 @@ class _PostCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                icon: Icon(Icons.edit_outlined, color: AppColors.primary, size: 22),
+                onPressed: onEdit,
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline, color: AppColors.error, size: 22),
+                onPressed: onDelete,
               ),
             ],
           ),
@@ -152,14 +287,15 @@ class _PostCard extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  item.location,
+                  location,
                   style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
                 ),
               ),
-              Text(
-                '(${item.distance})',
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
+              if (distance != null)
+                Text(
+                  '($distance)',
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -168,40 +304,41 @@ class _PostCard extends StatelessWidget {
               Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
               const SizedBox(width: 6),
               Text(
-                item.date,
+                post.date,
                 style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
               ),
               const SizedBox(width: 16),
               Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
               const SizedBox(width: 6),
               Text(
-                item.time,
+                post.time,
                 style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
               ),
             ],
           ),
+          if (post.lookingFor.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13),
+                children: [
+                  TextSpan(
+                    text: 'Looking for: ',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  TextSpan(
+                    text: post.lookingFor,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
-}
-
-class _PostItem {
-  const _PostItem({
-    required this.initials,
-    required this.name,
-    required this.joined,
-    required this.location,
-    required this.distance,
-    required this.date,
-    required this.time,
-  });
-
-  final String initials;
-  final String name;
-  final String joined;
-  final String location;
-  final String distance;
-  final String date;
-  final String time;
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/toast_util.dart';
+import '../../routes/app_routes.dart';
 import '../noticeboard/noticeboard_page.dart';
 import '../messages/messages_page.dart';
 import '../post_availability/post_availability_page.dart';
@@ -72,7 +75,16 @@ class _BottomNavBar extends StatelessWidget {
                 onTap: () => controller.setIndex(1),
               ),
               _CenterPostButton(
-                onTap: () => controller.setIndex(2),
+                onTap: () {
+                  AuthService.hasActiveSubscription().then((has) {
+                    if (has) {
+                      controller.setIndex(2);
+                    } else {
+                      ToastUtil.info('Subscribe to add a post');
+                      Get.toNamed(AppRoutes.choosePlan);
+                    }
+                  });
+                },
               ),
               _NavItem(
                 icon: Icons.description_outlined,

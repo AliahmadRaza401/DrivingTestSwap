@@ -1,15 +1,74 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/services/chat_service.dart';
 import '../../core/theme/app_colors.dart';
 
-class ChatPage extends StatelessWidget {
+class ChatPage extends StatefulWidget {
   const ChatPage({
     super.key,
-    this.name = 'Sarah J.',
-    this.initials = 'SJ',
+    required this.conversationId,
+    required this.otherUserId,
+    required this.otherUserName,
+    required this.otherUserInitials,
   });
 
-  final String name;
-  final String initials;
+  final String conversationId;
+  final String otherUserId;
+  final String otherUserName;
+  final String otherUserInitials;
+
+  @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  bool _sending = false;
+
+  String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  static String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+    return '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      await ChatService.sendMessage(widget.conversationId, text);
+      _controller.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +89,7 @@ class ChatPage extends StatelessWidget {
               radius: 18,
               backgroundColor: AppColors.primary.withValues(alpha: 0.2),
               child: Text(
-                initials,
+                widget.otherUserInitials,
                 style: const TextStyle(
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
@@ -40,7 +99,7 @@ class ChatPage extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Text(
-              name,
+              widget.otherUserName,
               style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 17,
@@ -50,43 +109,57 @@ class ChatPage extends StatelessWidget {
           ],
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: AppColors.textPrimary),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
           _buildSafetyBanner(),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              children: [
-                _buildDateChip('Today'),
-                const SizedBox(height: 16),
-                _buildMessage(
-                  context,
-                  text: "Hi, I noticed your post for Birmingham Is it still available?",
-                  time: '10:00',
-                  isOutgoing: true,
-                ),
-                const SizedBox(height: 12),
-                _buildMessage(
-                  context,
-                  text: "Yes it is! I'm looking for anything 8 April.",
-                  time: '10:05',
-                  isOutgoing: false,
-                ),
-                const SizedBox(height: 12),
-                _buildMessage(
-                  context,
-                  text: "Perfect, I have April 15th to swap.",
-                  time: '10:06',
-                  isOutgoing: true,
-                ),
-              ],
+            child: StreamBuilder<List<ChatMessage>>(
+              stream: ChatService.streamMessages(widget.conversationId),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Failed to load messages: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  );
+                }
+                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final messages = snapshot.data ?? [];
+                if (messages.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No messages yet. Say hello!',
+                      style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = messages[index];
+                    final isOutgoing = msg.senderId == _myUid;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildMessage(
+                        context,
+                        text: msg.text,
+                        time: _formatTime(msg.createdAt),
+                        isOutgoing: isOutgoing,
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
           _buildInputBar(context),
@@ -132,25 +205,6 @@ class ChatPage extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDateChip(String label) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.border.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
-        ),
       ),
     );
   }
@@ -224,6 +278,7 @@ class ChatPage extends StatelessWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: TextField(
+                controller: _controller,
                 decoration: InputDecoration(
                   hintText: 'Type a message..',
                   hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 15),
@@ -231,20 +286,27 @@ class ChatPage extends StatelessWidget {
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
                 ),
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _sendMessage(),
               ),
             ),
           ),
           const SizedBox(width: 12),
           Material(
-            color: AppColors.primary,
+            color: _sending ? AppColors.textSecondary : AppColors.primary,
             borderRadius: BorderRadius.circular(24),
             child: InkWell(
-              onTap: () {},
+              onTap: _sending ? null : _sendMessage,
               borderRadius: BorderRadius.circular(24),
-              child: const SizedBox(
+              child: SizedBox(
                 width: 48,
                 height: 48,
-                child: Icon(Icons.send_rounded, color: Colors.white, size: 24),
+                child: _sending
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send_rounded, color: Colors.white, size: 24),
               ),
             ),
           ),

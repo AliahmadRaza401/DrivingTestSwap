@@ -1,9 +1,18 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/post_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/toast_util.dart';
+import '../../routes/app_routes.dart';
+import '../main/controllers/main_controller.dart';
 
 class PostAvailabilityPage extends StatefulWidget {
-  const PostAvailabilityPage({super.key});
+  const PostAvailabilityPage({super.key, this.editPost});
+
+  final SwapPost? editPost;
 
   @override
   State<PostAvailabilityPage> createState() => _PostAvailabilityPageState();
@@ -17,6 +26,21 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
   final _lookingForController = TextEditingController();
   final _preferredAreaController = TextEditingController();
   final _notesController = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final post = widget.editPost;
+    if (post != null) {
+      _testCentreController.text = post.testCentre;
+      _dateController.text = post.date;
+      _timeController.text = post.time;
+      _lookingForController.text = post.lookingFor;
+      _preferredAreaController.text = post.preferredArea;
+      _notesController.text = post.notes;
+    }
+  }
 
   @override
   void dispose() {
@@ -55,9 +79,78 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     }
   }
 
-  void _onPost() {
-    if (_formKey.currentState?.validate() ?? false) {
-      Get.back();
+  static String _initialsFromName(String fullName) {
+    final parts = fullName.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) {
+      final s = parts.first;
+      return s.length >= 2 ? s.substring(0, 2).toUpperCase() : s.toUpperCase();
+    }
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+
+  String _errorMessage(Object e) {
+    final s = e.toString();
+    if (s.startsWith('Exception: ')) return s.substring(11);
+    return s;
+  }
+
+  Future<void> _onPost() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _loading = true);
+    final testCentre = _testCentreController.text.trim();
+    final date = _dateController.text.trim();
+    final time = _timeController.text.trim();
+    final lookingFor = _lookingForController.text.trim();
+    final preferredArea = _preferredAreaController.text.trim();
+    final notes = _notesController.text.trim();
+
+    try {
+      if (widget.editPost != null) {
+        await PostService.updatePost(
+          postId: widget.editPost!.id,
+          testCentre: testCentre,
+          date: date,
+          time: time,
+          lookingFor: lookingFor,
+          preferredArea: preferredArea,
+          notes: notes,
+        );
+        if (!mounted) return;
+        setState(() => _loading = false);
+        ToastUtil.success('Post updated');
+        Get.back(result: true);
+        return;
+      }
+
+      final profile = await AuthService.getCurrentUserProfile();
+      final creatorName = profile?['fullName']?.isNotEmpty == true ? profile!['fullName']! : 'User';
+      final creatorInitials = _initialsFromName(creatorName);
+
+      await PostService.createPost(
+        testCentre: testCentre,
+        date: date,
+        time: time,
+        lookingFor: lookingFor,
+        preferredArea: preferredArea,
+        notes: notes,
+        creatorName: creatorName,
+        creatorInitials: creatorInitials,
+      );
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ToastUtil.success('Post saved successfully');
+      Get.offAllNamed(AppRoutes.home);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (Get.isRegistered<MainController>()) {
+          Get.find<MainController>().setIndex(3);
+        }
+      });
+    } catch (e, st) {
+      developer.log('Post create/update failed', name: 'PostAvailabilityPage', error: e, stackTrace: st);
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ToastUtil.error(_errorMessage(e));
     }
   }
 
@@ -97,12 +190,11 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _testCentreController,
-                readOnly: true,
-                onTap: () {},
                 decoration: _inputDecoration(
                   hint: 'Where is your booked test?',
-                  suffixIcon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+                  suffixIcon: Icon(Icons.location_on_outlined, color: AppColors.textSecondary, size: 22),
                 ),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter test centre' : null,
               ),
               const SizedBox(height: 20),
               Row(
@@ -124,6 +216,7 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                               onPressed: _pickDate,
                             ),
                           ),
+                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Select date' : null,
                         ),
                       ],
                     ),
@@ -146,6 +239,7 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                               onPressed: _pickTime,
                             ),
                           ),
+                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Select time' : null,
                         ),
                       ],
                     ),
@@ -161,17 +255,16 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                   hint: 'e.g. Earlier dates',
                   suffixIcon: Icon(Icons.calendar_today_outlined, color: AppColors.textSecondary, size: 22),
                 ),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter what you\'re looking for' : null,
               ),
               const SizedBox(height: 20),
               _buildLabel('Preferred Area'),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _preferredAreaController,
-                readOnly: true,
-                onTap: () {},
                 decoration: _inputDecoration(
                   hint: 'e.g. Within 20 miles',
-                  suffixIcon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+                  suffixIcon: Icon(Icons.place_outlined, color: AppColors.textSecondary, size: 22),
                 ),
               ),
               const SizedBox(height: 20),
@@ -189,7 +282,7 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                 width: double.infinity,
                 height: 54,
                 child: FilledButton(
-                  onPressed: _onPost,
+                  onPressed: _loading ? null : _onPost,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.textOnPrimary,
@@ -197,10 +290,16 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Post to Noticeboard',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                        )
+                      : Text(
+                          widget.editPost != null ? 'Update Post' : 'Post to Noticeboard',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
               const SizedBox(height: 32),

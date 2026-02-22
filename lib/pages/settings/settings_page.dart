@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/theme/app_colors.dart';
+import 'change_password_page.dart';
+import 'edit_profile_page.dart';
+import 'privacy_policy_page.dart';
+import 'security_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -33,26 +37,32 @@ class SettingsPage extends StatelessWidget {
           _SettingsSection(
             title: 'Account',
             items: [
-              _SettingsItem(icon: Icons.person_outline_rounded, label: 'Edit Profile', onTap: () {}),
-              _SettingsItem(icon: Icons.email_outlined, label: 'Email & Notifications', onTap: () {}),
-              _SettingsItem(icon: Icons.lock_outline_rounded, label: 'Change Password', onTap: () {}),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _SettingsSection(
-            title: 'Preferences',
-            items: [
-              _SettingsItem(icon: Icons.notifications_outlined, label: 'Push Notifications', onTap: () {}),
-              _SettingsItem(icon: Icons.location_on_outlined, label: 'Location', onTap: () {}),
-              _SettingsItem(icon: Icons.language_rounded, label: 'Language', onTap: () {}),
+              _SettingsItem(
+                icon: Icons.person_outline_rounded,
+                label: 'Edit Profile',
+                onTap: () => Get.to(() => const EditProfilePage()),
+              ),
+              _SettingsItem(
+                icon: Icons.lock_outline_rounded,
+                label: 'Change Password',
+                onTap: () => Get.to(() => const ChangePasswordPage()),
+              ),
             ],
           ),
           const SizedBox(height: 24),
           _SettingsSection(
             title: 'Privacy & Security',
             items: [
-              _SettingsItem(icon: Icons.shield_outlined, label: 'Privacy Policy', onTap: () {}),
-              _SettingsItem(icon: Icons.verified_user_outlined, label: 'Security', onTap: () {}),
+              _SettingsItem(
+                icon: Icons.shield_outlined,
+                label: 'Privacy Policy',
+                onTap: () => Get.to(() => const PrivacyPolicyPage()),
+              ),
+              _SettingsItem(
+                icon: Icons.verified_user_outlined,
+                label: 'Security',
+                onTap: () => Get.to(() => const SecurityPage()),
+              ),
             ],
           ),
         ],

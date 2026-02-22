@@ -2,10 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/user_preferences_service.dart';
 import '../../routes/app_routes.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
+
+  static Future<_ProfileData?> _loadProfileData() async {
+    final fullName = await UserPreferencesService.fullName;
+    final email = await UserPreferencesService.email;
+    final subscription = await AuthService.getSubscriptionStatus();
+    if (email == null || email.isEmpty) return null;
+    final initials = _initialsFromName(fullName ?? '');
+    return _ProfileData(
+      fullName: fullName?.trim().isNotEmpty == true ? fullName!.trim() : 'User',
+      email: email,
+      initials: initials,
+      planTitle: subscription?.planTitle,
+    );
+  }
+
+  static String _initialsFromName(String fullName) {
+    final parts = fullName.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) {
+      final s = parts.first;
+      return s.length >= 2 ? s.substring(0, 2).toUpperCase() : s.toUpperCase();
+    }
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,27 +43,47 @@ class ProfilePage extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 24),
-              _buildProfileHeader(),
+              FutureBuilder<_ProfileData?>(
+                future: _loadProfileData(),
+                builder: (context, snapshot) {
+                  return _buildProfileHeader(
+                    fullName: snapshot.data?.fullName ?? '—',
+                    email: snapshot.data?.email ?? '—',
+                    initials: snapshot.data?.initials ?? '?',
+                    planTitle: snapshot.data?.planTitle,
+                    loading: snapshot.connectionState == ConnectionState.waiting,
+                  );
+                },
+              ),
               const SizedBox(height: 32),
-              _buildMenuRow(
-                icon: Icons.card_membership_rounded,
-                label: 'Membership Plan',
-                onTap: () => Get.toNamed(AppRoutes.choosePlan),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.premiumYellow,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Premium',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.premiumOrange,
-                    ),
-                  ),
-                ),
+              FutureBuilder<_ProfileData?>(
+                future: _loadProfileData(),
+                builder: (context, snapshot) {
+                  final planTitle = snapshot.data?.planTitle ?? '';
+                  final hasPlan = planTitle.isNotEmpty;
+                  return _buildMenuRow(
+                    icon: Icons.card_membership_rounded,
+                    label: 'Membership Plan',
+                    onTap: () => Get.toNamed(AppRoutes.choosePlan),
+                    trailing: hasPlan
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.premiumYellow,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              planTitle,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.premiumOrange,
+                              ),
+                            ),
+                          )
+                        : null,
+                  );
+                },
               ),
               _buildMenuRow(
                 icon: Icons.settings_rounded,
@@ -67,68 +113,97 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader({
+    required String fullName,
+    required String email,
+    required String initials,
+    String? planTitle,
+    bool loading = false,
+  }) {
+    final hasPlan = planTitle != null && planTitle.isNotEmpty;
     return Column(
       children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            CircleAvatar(
-              radius: 48,
-              backgroundColor: AppColors.border.withValues(alpha: 0.6),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: CircularProgressIndicator(),
+          )
+        else ...[
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                radius: 48,
+                backgroundColor: AppColors.border.withValues(alpha: 0.6),
+                child: Text(
+                  initials,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (hasPlan)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: AppColors.success,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            fullName,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            email,
+            style: const TextStyle(
+              fontSize: 15,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (hasPlan)
+            GestureDetector(
+              onTap: () => Get.toNamed(AppRoutes.choosePlan),
+              child: Text(
+                planTitle,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.primary,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.primary,
+                ),
+              ),
+            )
+          else
+            GestureDetector(
+              onTap: () => Get.toNamed(AppRoutes.choosePlan),
               child: const Text(
-                'AD',
+                'Choose a plan',
                 style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  color: AppColors.primary,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.primary,
                 ),
               ),
             ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: AppColors.success,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Alex',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'alex@example.com',
-          style: TextStyle(
-            fontSize: 15,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: () {},
-          child: const Text(
-            'Member since Feb 2026',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.primary,
-              decoration: TextDecoration.underline,
-              decorationColor: AppColors.primary,
-            ),
-          ),
-        ),
+        ],
       ],
     );
   }
@@ -180,7 +255,11 @@ class ProfilePage extends StatelessWidget {
         color: AppColors.logoutRedBg,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: () => Get.offAllNamed(AppRoutes.login),
+          onTap: () async {
+            await UserPreferencesService.clearUserAndLoginState();
+            await AuthService.signOut();
+            Get.offAllNamed(AppRoutes.login);
+          },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
@@ -204,4 +283,17 @@ class ProfilePage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ProfileData {
+  const _ProfileData({
+    required this.fullName,
+    required this.email,
+    required this.initials,
+    this.planTitle,
+  });
+  final String fullName;
+  final String email;
+  final String initials;
+  final String? planTitle;
 }

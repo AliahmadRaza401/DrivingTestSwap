@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/utils/toast_util.dart';
 import '../../routes/app_routes.dart';
 
 class SignupPage extends StatefulWidget {
@@ -17,6 +19,9 @@ class _SignupPageState extends State<SignupPage> {
   final _dobController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _loading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
@@ -41,10 +46,24 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
-  void _onContinue() {
-    if (_formKey.currentState?.validate() ?? false) {
-      Get.offAllNamed(AppRoutes.terms);
+  Future<void> _onContinue() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _loading = true);
+    final error = await AuthService.signUp(
+      email: _emailController.text,
+      password: _passwordController.text,
+      fullName: _fullNameController.text,
+      dateOfBirth: _dobController.text,
+    );
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (error != null) {
+      ToastUtil.error(error);
+      return;
     }
+    await AuthService.signOut();
+    ToastUtil.success('Account created. Please log in.', title: 'Success');
+    Get.offAllNamed(AppRoutes.login);
   }
 
   @override
@@ -119,8 +138,18 @@ class _SignupPageState extends State<SignupPage> {
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: true,
-                  decoration: _inputDecoration(hint: 'Enter Password'),
+                  obscureText: _obscurePassword,
+                  decoration: _inputDecoration(
+                    hint: 'Enter Password',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: AppColors.textSecondary,
+                        size: 22,
+                      ),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Enter password';
                     if (v.length < 6) return 'Password must be at least 6 characters';
@@ -132,8 +161,18 @@ class _SignupPageState extends State<SignupPage> {
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _confirmPasswordController,
-                  obscureText: true,
-                  decoration: _inputDecoration(hint: 'Enter Confirm Password'),
+                  obscureText: _obscureConfirmPassword,
+                  decoration: _inputDecoration(
+                    hint: 'Enter Confirm Password',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: AppColors.textSecondary,
+                        size: 22,
+                      ),
+                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                    ),
+                  ),
                   validator: (v) {
                     if (v != _passwordController.text) return 'Passwords do not match';
                     return null;
@@ -145,7 +184,7 @@ class _SignupPageState extends State<SignupPage> {
                 SizedBox(
                   height: 54,
                   child: FilledButton(
-                    onPressed: _onContinue,
+                    onPressed: _loading ? null : _onContinue,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.textOnPrimary,
@@ -153,10 +192,19 @@ class _SignupPageState extends State<SignupPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'Continue',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                    ),
+                    child: _loading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Continue',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 24),
