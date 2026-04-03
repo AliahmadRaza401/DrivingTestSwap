@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_assets.dart';
+import '../../core/services/admin_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/user_preferences_service.dart';
@@ -30,10 +31,21 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _onLogin() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
-    final error = await AuthService.signIn(
-      email: _emailController.text,
-      password: _passwordController.text,
-    );
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (AdminService.matchesStaticCredentials(
+      email: email,
+      password: password,
+    )) {
+      await AdminService.signInAsAdmin();
+      if (!mounted) return;
+      setState(() => _loading = false);
+      Get.offAllNamed(AppRoutes.adminHome);
+      return;
+    }
+
+    final error = await AuthService.signIn(email: email, password: password);
     if (!mounted) return;
     setState(() => _loading = false);
     if (error != null) {
@@ -47,9 +59,11 @@ class _LoginPageState extends State<LoginPage> {
         email: profile['email']!,
         fullName: profile['fullName'] ?? '',
         dateOfBirth: profile['dateOfBirth'] ?? '',
+        role: UserPrefsKeys.roleUser,
       );
     }
-    final termsAlreadyResponded = await UserPreferencesService.hasTermsBeenResponded();
+    final termsAlreadyResponded =
+        await UserPreferencesService.hasTermsBeenResponded();
     if (!termsAlreadyResponded) {
       Get.offAllNamed(AppRoutes.terms);
       return;
@@ -71,7 +85,11 @@ class _LoginPageState extends State<LoginPage> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary, size: 22),
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: AppColors.textPrimary,
+            size: 22,
+          ),
           onPressed: () => Get.back(),
         ),
         title: const Text(
@@ -102,8 +120,12 @@ class _LoginPageState extends State<LoginPage> {
                   keyboardType: TextInputType.emailAddress,
                   decoration: _inputDecoration(hint: 'you@example.com'),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Enter your email';
-                    if (!GetUtils.isEmail(v.trim())) return 'Enter a valid email';
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Enter your email';
+                    }
+                    if (!GetUtils.isEmail(v.trim())) {
+                      return 'Enter a valid email';
+                    }
                     return null;
                   },
                 ),
@@ -135,12 +157,17 @@ class _LoginPageState extends State<LoginPage> {
                             height: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : const Text(
                             'Login',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                   ),
                 ),
@@ -192,7 +219,11 @@ class _LoginPageState extends State<LoginPage> {
               color: AppColors.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.swap_horiz_rounded, size: 44, color: AppColors.primary),
+            child: const Icon(
+              Icons.swap_horiz_rounded,
+              size: 44,
+              color: AppColors.primary,
+            ),
           ),
         ),
         const SizedBox(height: 24),

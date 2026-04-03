@@ -38,13 +38,17 @@ class ChatMessage {
   final String text;
   final DateTime createdAt;
 
-  factory ChatMessage.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory ChatMessage.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data()!;
     return ChatMessage(
       id: doc.id,
       senderId: data[FirestoreMessages.senderId] as String? ?? '',
       text: data[FirestoreMessages.text] as String? ?? '',
-      createdAt: (data[FirestoreMessages.createdAt] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt:
+          (data[FirestoreMessages.createdAt] as Timestamp?)?.toDate() ??
+          DateTime.now(),
     );
   }
 }
@@ -63,6 +67,30 @@ class ConversationSummary {
   final String otherUserId;
   final String otherDisplayName;
   final String otherInitials;
+  final String lastMessageText;
+  final DateTime? lastMessageAt;
+}
+
+class AdminConversationSummary {
+  AdminConversationSummary({
+    required this.conversationId,
+    required this.user1Id,
+    required this.user1DisplayName,
+    required this.user1Initials,
+    required this.user2Id,
+    required this.user2DisplayName,
+    required this.user2Initials,
+    this.lastMessageText = '',
+    this.lastMessageAt,
+  });
+
+  final String conversationId;
+  final String user1Id;
+  final String user1DisplayName;
+  final String user1Initials;
+  final String user2Id;
+  final String user2DisplayName;
+  final String user2Initials;
   final String lastMessageText;
   final DateTime? lastMessageAt;
 }
@@ -90,7 +118,9 @@ class ChatService {
     if (myUid == null) throw Exception('Not signed in');
     if (myUid == otherUserId) throw Exception('Cannot chat with yourself');
     final cid = _conversationId(myUid, otherUserId);
-    final ref = _firestore.collection(FirestoreConversations.collection).doc(cid);
+    final ref = _firestore
+        .collection(FirestoreConversations.collection)
+        .doc(cid);
     final doc = await ref.get();
     if (doc.exists) return cid;
     final myName = await UserPreferencesService.fullName ?? 'You';
@@ -119,7 +149,11 @@ class ChatService {
   }
 
   static String _initialsFromName(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '?';
     if (parts.length == 1) {
       final s = parts.first;
@@ -135,7 +169,9 @@ class ChatService {
         .collection(FirestoreMessages.subcollection)
         .orderBy(FirestoreMessages.createdAt, descending: false)
         .snapshots()
-        .map((snap) => snap.docs.map((d) => ChatMessage.fromFirestore(d)).toList());
+        .map(
+          (snap) => snap.docs.map((d) => ChatMessage.fromFirestore(d)).toList(),
+        );
   }
 
   static Future<void> sendMessage(String conversationId, String text) async {
@@ -147,7 +183,9 @@ class ChatService {
         .collection(FirestoreConversations.collection)
         .doc(conversationId)
         .collection(FirestoreMessages.subcollection);
-    final convRef = _firestore.collection(FirestoreConversations.collection).doc(conversationId);
+    final convRef = _firestore
+        .collection(FirestoreConversations.collection)
+        .doc(conversationId);
     await _firestore.runTransaction((tx) async {
       tx.set(messagesRef.doc(), {
         FirestoreMessages.senderId: uid,
@@ -183,7 +221,9 @@ class ChatService {
   /// Extracts the Firebase Console index URL from the Firestore error message, if present.
   static String? getIndexCreationUrlFromError(Object e) {
     final s = e.toString();
-    final match = RegExp(r'https://console\.firebase\.google\.com[^\s\)\]]+').firstMatch(s);
+    final match = RegExp(
+      r'https://console\.firebase\.google\.com[^\s\)\]]+',
+    ).firstMatch(s);
     return match?.group(0);
   }
 
@@ -199,20 +239,61 @@ class ChatService {
         .map((snap) => snap.docs.map((d) => _docToSummary(d, uid)).toList());
   }
 
-  static ConversationSummary _docToSummary(DocumentSnapshot<Map<String, dynamic>> doc, String myUid) {
+  static Stream<List<AdminConversationSummary>> streamAllConversations() {
+    return _firestore
+        .collection(FirestoreConversations.collection)
+        .orderBy(FirestoreConversations.lastMessageAt, descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => _docToAdminSummary(d)).toList());
+  }
+
+  static ConversationSummary _docToSummary(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+    String myUid,
+  ) {
     final data = doc.data()!;
     final id = doc.id;
     final isUser1 = data[FirestoreConversations.user1Id] == myUid;
-    final otherId = isUser1 ? (data[FirestoreConversations.user2Id] as String?) : (data[FirestoreConversations.user1Id] as String?);
-    final otherName = isUser1 ? (data[FirestoreConversations.user2DisplayName] as String?) : (data[FirestoreConversations.user1DisplayName] as String?);
-    final otherIn = isUser1 ? (data[FirestoreConversations.user2Initials] as String?) : (data[FirestoreConversations.user1Initials] as String?);
+    final otherId = isUser1
+        ? (data[FirestoreConversations.user2Id] as String?)
+        : (data[FirestoreConversations.user1Id] as String?);
+    final otherName = isUser1
+        ? (data[FirestoreConversations.user2DisplayName] as String?)
+        : (data[FirestoreConversations.user1DisplayName] as String?);
+    final otherIn = isUser1
+        ? (data[FirestoreConversations.user2Initials] as String?)
+        : (data[FirestoreConversations.user1Initials] as String?);
     final lastAt = data[FirestoreConversations.lastMessageAt] as Timestamp?;
     return ConversationSummary(
       conversationId: id,
       otherUserId: otherId ?? '',
       otherDisplayName: otherName ?? '?',
       otherInitials: otherIn ?? '?',
-      lastMessageText: data[FirestoreConversations.lastMessageText] as String? ?? '',
+      lastMessageText:
+          data[FirestoreConversations.lastMessageText] as String? ?? '',
+      lastMessageAt: lastAt?.toDate(),
+    );
+  }
+
+  static AdminConversationSummary _docToAdminSummary(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data()!;
+    final lastAt = data[FirestoreConversations.lastMessageAt] as Timestamp?;
+    return AdminConversationSummary(
+      conversationId: doc.id,
+      user1Id: data[FirestoreConversations.user1Id] as String? ?? '',
+      user1DisplayName:
+          data[FirestoreConversations.user1DisplayName] as String? ?? 'User 1',
+      user1Initials:
+          data[FirestoreConversations.user1Initials] as String? ?? '?',
+      user2Id: data[FirestoreConversations.user2Id] as String? ?? '',
+      user2DisplayName:
+          data[FirestoreConversations.user2DisplayName] as String? ?? 'User 2',
+      user2Initials:
+          data[FirestoreConversations.user2Initials] as String? ?? '?',
+      lastMessageText:
+          data[FirestoreConversations.lastMessageText] as String? ?? '',
       lastMessageAt: lastAt?.toDate(),
     );
   }

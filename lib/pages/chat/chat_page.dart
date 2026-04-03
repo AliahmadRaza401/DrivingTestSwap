@@ -10,12 +10,14 @@ class ChatPage extends StatefulWidget {
     required this.otherUserId,
     required this.otherUserName,
     required this.otherUserInitials,
+    this.readOnlyMode = false,
   });
 
   final String conversationId;
   final String otherUserId;
   final String otherUserName;
   final String otherUserInitials;
+  final bool readOnlyMode;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -54,9 +56,9 @@ class _ChatPageState extends State<ChatPage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send: $e')));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -79,7 +81,11 @@ class _ChatPageState extends State<ChatPage> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary, size: 22),
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: AppColors.textPrimary,
+            size: 22,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Row(
@@ -129,7 +135,8 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   );
                 }
-                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final messages = snapshot.data ?? [];
@@ -137,13 +144,19 @@ class _ChatPageState extends State<ChatPage> {
                   return Center(
                     child: Text(
                       'No messages yet. Say hello!',
-                      style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   );
                 }
                 return ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
@@ -162,7 +175,7 @@ class _ChatPageState extends State<ChatPage> {
               },
             ),
           ),
-          _buildInputBar(context),
+          if (!widget.readOnlyMode) _buildInputBar(context),
         ],
       ),
     );
@@ -176,7 +189,11 @@ class _ChatPageState extends State<ChatPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning_amber_rounded, color: AppColors.highlightOrangeText, size: 24),
+          Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.highlightOrangeText,
+            size: 24,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: RichText(
@@ -188,7 +205,8 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 children: [
                   const TextSpan(
-                    text: 'Safety First: Agree details here, but complete the actual swap on ',
+                    text:
+                        'Safety First: Agree details here, but complete the actual swap on ',
                   ),
                   TextSpan(
                     text: 'GOV.UK',
@@ -218,9 +236,13 @@ class _ChatPageState extends State<ChatPage> {
     return Align(
       alignment: isOutgoing ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
+        ),
         child: Column(
-          crossAxisAlignment: isOutgoing ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isOutgoing
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -252,10 +274,7 @@ class _ChatPageState extends State<ChatPage> {
             const SizedBox(height: 4),
             Text(
               time,
-              style: TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -265,7 +284,12 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildInputBar(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        12 + MediaQuery.of(context).padding.bottom,
+      ),
       color: Colors.white,
       child: Row(
         children: [
@@ -281,7 +305,10 @@ class _ChatPageState extends State<ChatPage> {
                 controller: _controller,
                 decoration: InputDecoration(
                   hintText: 'Type a message..',
-                  hintStyle: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                  hintStyle: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 15,
+                  ),
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
@@ -304,9 +331,16 @@ class _ChatPageState extends State<ChatPage> {
                 child: _sending
                     ? const Padding(
                         padding: EdgeInsets.all(12),
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
-                    : const Icon(Icons.send_rounded, color: Colors.white, size: 24),
+                    : const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
               ),
             ),
           ),

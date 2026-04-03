@@ -24,16 +24,24 @@ class _SplashPageState extends State<SplashPage> {
 
   Future<void> _navigateAfterDelay() async {
     final isLoggedIn = await UserPreferencesService.isLoggedIn();
+    final role = await UserPreferencesService.role;
     final hasAuthUser = AuthService.currentUser != null;
 
-    if (isLoggedIn && hasAuthUser) {
+    if (isLoggedIn && role == UserPrefsKeys.roleAdmin) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      Get.offAllNamed(AppRoutes.adminHome);
+      return;
+    }
+
+    if (isLoggedIn && role != UserPrefsKeys.roleAdmin && hasAuthUser) {
       await Future<void>.delayed(const Duration(seconds: 2));
       if (!mounted) return;
       Get.offAllNamed(AppRoutes.home);
       return;
     }
 
-    if (isLoggedIn && !hasAuthUser) {
+    if (isLoggedIn && role != UserPrefsKeys.roleAdmin && !hasAuthUser) {
       await UserPreferencesService.clearUserAndLoginState();
     }
 

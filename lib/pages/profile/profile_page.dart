@@ -24,7 +24,11 @@ class ProfilePage extends StatelessWidget {
   }
 
   static String _initialsFromName(String fullName) {
-    final parts = fullName.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    final parts = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '?';
     if (parts.length == 1) {
       final s = parts.first;
@@ -51,7 +55,8 @@ class ProfilePage extends StatelessWidget {
                     email: snapshot.data?.email ?? '—',
                     initials: snapshot.data?.initials ?? '?',
                     planTitle: snapshot.data?.planTitle,
-                    loading: snapshot.connectionState == ConnectionState.waiting,
+                    loading:
+                        snapshot.connectionState == ConnectionState.waiting,
                   );
                 },
               ),
@@ -67,7 +72,10 @@ class ProfilePage extends StatelessWidget {
                     onTap: () => Get.toNamed(AppRoutes.choosePlan),
                     trailing: hasPlan
                         ? Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.premiumYellow,
                               borderRadius: BorderRadius.circular(8),
@@ -91,6 +99,11 @@ class ProfilePage extends StatelessWidget {
                 onTap: () => Get.toNamed(AppRoutes.settings),
               ),
               _buildMenuRow(
+                icon: Icons.receipt_long_rounded,
+                label: 'Payment History',
+                onTap: () => Get.toNamed(AppRoutes.paymentHistory),
+              ),
+              _buildMenuRow(
                 icon: Icons.help_outline_rounded,
                 label: 'Help & FAQ',
                 onTap: () => Get.toNamed(AppRoutes.helpFaq),
@@ -100,10 +113,7 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 32),
               Text(
                 'Version ${AppConstants.appVersion} • DriveSwap © 2026',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 24),
             ],
@@ -154,7 +164,11 @@ class ProfilePage extends StatelessWidget {
                       color: AppColors.success,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 18),
+                    child: const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                 ),
             ],
@@ -171,10 +185,7 @@ class ProfilePage extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             email,
-            style: const TextStyle(
-              fontSize: 15,
-              color: AppColors.textPrimary,
-            ),
+            style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 8),
           if (hasPlan)
@@ -239,7 +250,11 @@ class ProfilePage extends StatelessWidget {
                 ),
                 if (trailing != null) trailing,
                 if (trailing != null) const SizedBox(width: 8),
-                Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 24),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary,
+                  size: 24,
+                ),
               ],
             ),
           ),
@@ -266,7 +281,11 @@ class ProfilePage extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.logout_rounded, size: 22, color: AppColors.logoutRed),
+                Icon(
+                  Icons.logout_rounded,
+                  size: 22,
+                  color: AppColors.logoutRed,
+                ),
                 const SizedBox(width: 10),
                 Text(
                   'Log Out',

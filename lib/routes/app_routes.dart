@@ -8,7 +8,11 @@ abstract class AppRoutes {
   static const String login = '/login';
   static const String terms = '/terms';
   static const String choosePlan = '/choose-plan';
+  static const String paymentHistory = '/payment-history';
   static const String home = '/home';
+  static const String adminHome = '/admin-home';
+  static const String adminSubscriptions = '/admin-subscriptions';
+  static const String adminPayments = '/admin-payments';
   static const String swap = '/swap';
   static const String settings = '/settings';
   static const String helpFaq = '/help-faq';

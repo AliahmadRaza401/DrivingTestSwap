@@ -9,7 +9,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 class StripePaymentController extends GetxController {
   var isLoading = false.obs;
 
-  Future<void> initPaymentSheet({
+  Future<Map<String, dynamic>> initPaymentSheet({
     required String amount,
     required String currency,
     required String merchantName,
@@ -29,6 +29,7 @@ class StripePaymentController extends GetxController {
       );
       log(' Payment sheet initialized successfully');
       isLoading.value = false;
+      return paymentIntent;
     } catch (e, stack) {
       isLoading.value = false;
       log(' Stripe initPaymentSheet Error: $e');

@@ -1,174 +1,61 @@
-import 'package:drivingtestswap/core/services/auth_service.dart';
-import 'package:drivingtestswap/core/services/stripe_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:get/get.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/utils/toast_util.dart';
-import '../../routes/app_routes.dart';
 
-class ChoosePlanPage extends StatefulWidget {
+import '../../core/services/subscription_plan_service.dart';
+import '../../core/theme/app_colors.dart';
+import 'controllers/choose_plan_controller.dart';
+
+class ChoosePlanPage extends GetView<ChoosePlanController> {
   const ChoosePlanPage({super.key});
 
   @override
-  State<ChoosePlanPage> createState() => _ChoosePlanPageState();
-}
-
-class _ChoosePlanPageState extends State<ChoosePlanPage> {
-  int _selectedIndex = 1; // 3 Months default
-  SubscriptionStatus? _subscriptionStatus;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSubscriptionStatus();
-  }
-
-  Future<void> _loadSubscriptionStatus() async {
-    final status = await AuthService.getSubscriptionStatus();
-    if (mounted) setState(() => _subscriptionStatus = status);
-  }
-
-  static const List<_PlanData> _plans = [
-    _PlanData(
-      id: 'monthly',
-      icon: Icons.bolt_rounded,
-      title: 'Monthly',
-      priceLabel: '£4.99/mo',
-      price: '£4.99',
-      period: '/month',
-      amountForStripe: '4.99',
-      currency: 'gbp',
-      features: [
-        'Instant test swap alerts',
-        'Search by location & date',
-        'Cancel anytime',
-      ],
-      popular: false,
-      savePercent: null,
-      isGreenCheck: false,
-    ),
-    _PlanData(
-      id: '3months',
-      icon: Icons.workspace_premium_rounded,
-      title: '3 Months',
-      priceLabel: '£4.33/mo',
-      price: '£12.99',
-      period: '/3 months',
-      amountForStripe: '12.99',
-      currency: 'gbp',
-      features: [
-        'Instant test swap alerts',
-        'Search by location & date',
-        'Priority notification',
-        'Best value for most learner',
-      ],
-      popular: true,
-      savePercent: 13,
-      isGreenCheck: true,
-    ),
-    _PlanData(
-      id: '6months',
-      icon: Icons.star_outline_rounded,
-      title: '6 Months',
-      priceLabel: '£4.17/mo',
-      price: '£24.99',
-      period: '/6 months',
-      amountForStripe: '24.99',
-      currency: 'gbp',
-      features: [
-        'Instant test swap alerts',
-        'Search by location & date',
-        'Priority notification',
-        'Extended coverage period',
-      ],
-      popular: false,
-      savePercent: 17,
-      isGreenCheck: false,
-    ),
-  ];
-
-  void _onContinue() async {
-    final plan = _plans[_selectedIndex];
-    final stripeController = Get.put(StripePaymentController());
-    stripeController.isLoading.value = true;
-    try {
-      await stripeController.initPaymentSheet(
-        amount: plan.amountForStripe,
-        currency: plan.currency,
-        merchantName: 'Driving Test Swap',
-      );
-      if (!mounted) return;
-      stripeController.isLoading.value = false;
-      await stripeController.presentPaymentSheet();
-      if (!mounted) return;
-      final months = plan.id == 'monthly' ? 1 : plan.id == '3months' ? 3 : 6;
-      final now = DateTime.now();
-      final expiresAt = DateTime(now.year, now.month + months, now.day, now.hour, now.minute, now.second);
-      await AuthService.saveUserSubscription(
-        planId: plan.id,
-        planTitle: plan.title,
-        price: plan.price,
-        period: plan.period,
-        expiresAt: expiresAt,
-      );
-      if (!mounted) return;
-      ToastUtil.success('Congratulations! Your subscription is active.');
-      Get.offAllNamed(AppRoutes.home);
-    } on StripeException catch (e) {
-      stripeController.isLoading.value = false;
-      if (e.error.code == FailureCode.Canceled) return;
-      ToastUtil.error(e.error.localizedMessage ?? 'Payment failed');
-    } catch (e) {
-      stripeController.isLoading.value = false;
-      ToastUtil.error(e.toString());
-    }
-  }
-
-  void _onPublicView() {
-    Get.offAllNamed(AppRoutes.home);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final plan = _plans[_selectedIndex];
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 8),
-                    if (_subscriptionStatus != null) ...[
-                      _buildSubscriptionStatusCard(),
-                      const SizedBox(height: 16),
-                    ],
-                    ...List.generate(_plans.length, (index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _PlanCard(
-                          data: _plans[index],
-                          isSelected: _selectedIndex == index,
-                          onTap: () => setState(() => _selectedIndex = index),
+        child: Obx(() {
+          final selectedPlan = controller.selectedPlan;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: controller.isLoading.value
+                    ? const Center(child: CircularProgressIndicator())
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 8),
+                            if (controller.subscriptionStatus.value !=
+                                null) ...[
+                              _buildSubscriptionStatusCard(),
+                              const SizedBox(height: 16),
+                            ],
+                            ...List.generate(controller.plans.length, (index) {
+                              final plan = controller.plans[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _PlanCard(
+                                  data: plan,
+                                  isSelected:
+                                      controller.selectedIndex.value == index,
+                                  onTap: () => controller.selectPlan(index),
+                                ),
+                              );
+                            }),
+                            if (controller.plans.isEmpty) _buildEmptyState(),
+                            const SizedBox(height: 16),
+                            _buildPolicyCard(),
+                            const SizedBox(height: 24),
+                          ],
                         ),
-                      );
-                    }),
-                    const SizedBox(height: 16),
-                    _buildPolicyCard(),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                      ),
               ),
-            ),
-            _buildFooterButtons(plan),
-          ],
-        ),
+              _buildFooterButtons(selectedPlan),
+            ],
+          );
+        }),
       ),
     );
   }
@@ -217,7 +104,6 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
-                    fontWeight: FontWeight.normal,
                   ),
                 ),
               ],
@@ -229,7 +115,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
   }
 
   Widget _buildSubscriptionStatusCard() {
-    final s = _subscriptionStatus!;
+    final s = controller.subscriptionStatus.value!;
     final expiryText = s.expiresAt != null
         ? '${s.expiresAt!.day.toString().padLeft(2, '0')}/${s.expiresAt!.month.toString().padLeft(2, '0')}/${s.expiresAt!.year}'
         : '—';
@@ -257,7 +143,11 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
               color: AppColors.primary.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.card_membership_rounded, color: AppColors.primary, size: 26),
+            child: const Icon(
+              Icons.card_membership_rounded,
+              color: AppColors.primary,
+              size: 26,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -297,6 +187,32 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
     );
   }
 
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.card_membership_outlined,
+            size: 42,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No active plans available right now.',
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPolicyCard() {
     return Container(
       width: double.infinity,
@@ -323,35 +239,40 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 RichText(
-                  text: TextSpan(
-                    style: const TextStyle(
+                  text: const TextSpan(
+                    style: TextStyle(
                       fontSize: 13,
                       height: 1.45,
                       color: AppColors.textPrimary,
                     ),
                     children: [
-                      const TextSpan(
+                      TextSpan(
                         text: 'Non-refundable',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      const TextSpan(text: ' · All plans are non-refundable once purchased.'),
+                      TextSpan(
+                        text: ' · All plans are non-refundable once purchased.',
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
                 RichText(
-                  text: TextSpan(
-                    style: const TextStyle(
+                  text: const TextSpan(
+                    style: TextStyle(
                       fontSize: 13,
                       height: 1.45,
                       color: AppColors.textPrimary,
                     ),
                     children: [
-                      const TextSpan(
+                      TextSpan(
                         text: 'Non-transferable',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      const TextSpan(text: ' · Plans are tied to your account and cannot be transferred.'),
+                      TextSpan(
+                        text:
+                            ' · Plans are tied to your account and cannot be transferred.',
+                      ),
                     ],
                   ),
                 ),
@@ -363,7 +284,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
     );
   }
 
-  Widget _buildFooterButtons(_PlanData plan) {
+  Widget _buildFooterButtons(SubscriptionPlan? plan) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       decoration: BoxDecoration(
@@ -382,7 +303,9 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
             width: double.infinity,
             height: 54,
             child: FilledButton(
-              onPressed: _onContinue,
+              onPressed: plan == null || controller.isSubmitting.value
+                  ? null
+                  : controller.continueWithPlan,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: AppColors.textOnPrimary,
@@ -390,10 +313,24 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(
-                'Continue with ${plan.title} – ${plan.price}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              child: controller.isSubmitting.value
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      plan == null
+                          ? 'No plans available'
+                          : 'Continue with ${plan.title} – ${plan.price}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 12),
@@ -401,7 +338,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
             width: double.infinity,
             height: 52,
             child: OutlinedButton(
-              onPressed: _onPublicView,
+              onPressed: controller.openPublicView,
               style: OutlinedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.primary,
@@ -416,10 +353,7 @@ class _ChoosePlanPageState extends State<ChoosePlanPage> {
           const SizedBox(height: 14),
           Text(
             'Secure payment · Cancel anytime for monthly plans',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -434,7 +368,7 @@ class _PlanCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final _PlanData data;
+  final SubscriptionPlan data;
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -486,147 +420,123 @@ class _PlanCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
                   children: [
-                    if (data.popular) _buildChip(label: 'Most Popular', isPrimary: true),
+                    if (data.popular)
+                      _buildChip(label: 'Most Popular', isPrimary: true),
                     const Spacer(),
                     if (data.savePercent != null)
-                      _buildChip(label: 'Save ${data.savePercent}%', isPrimary: false),
+                      _buildChip(
+                        label: 'Save ${data.savePercent}%',
+                        isPrimary: false,
+                      ),
                   ],
                 ),
               ),
             Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.15)
+                        : AppColors.border.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    data.icon,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data.title,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        data.durationLabel,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.primary.withValues(alpha: 0.15)
-                            : AppColors.border.withValues(alpha: 0.5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        data.icon,
-                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                        size: 26,
+                    Text(
+                      "£${data.price}",
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            data.title,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            data.priceLabel,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      data.durationLabel,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
                       ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          data.price,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          data.period,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                ...data.features.map(
-                  (f) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: data.isGreenCheck
-                                ? AppColors.success
-                                : AppColors.border.withValues(alpha: 0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.check_rounded,
-                            size: 14,
-                            color: data.isGreenCheck
-                                ? Colors.white
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            f,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
+            ),
+            const SizedBox(height: 16),
+            ...data.features.map(
+              (feature) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: data.isGreenCheck
+                            ? AppColors.success
+                            : AppColors.border.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check_rounded,
+                        size: 14,
+                        color: data.isGreenCheck
+                            ? Colors.white
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        feature,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-}
-
-class _PlanData {
-  const _PlanData({
-    required this.id,
-    required this.icon,
-    required this.title,
-    required this.priceLabel,
-    required this.price,
-    required this.period,
-    required this.amountForStripe,
-    required this.currency,
-    required this.features,
-    required this.popular,
-    required this.savePercent,
-    required this.isGreenCheck,
-  });
-
-  final String id;
-  final IconData icon;
-  final String title;
-  final String priceLabel;
-  final String price;
-  final String period;
-  final String amountForStripe;
-  final String currency;
-  final List<String> features;
-  final bool popular;
-  final int? savePercent;
-  final bool isGreenCheck;
 }

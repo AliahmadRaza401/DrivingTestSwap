@@ -8,6 +8,10 @@ abstract class UserPrefsKeys {
   static const String fullName = 'full_name';
   static const String dateOfBirth = 'date_of_birth';
   static const String termsResponded = 'terms_responded';
+  static const String role = 'role';
+
+  static const String roleUser = 'user';
+  static const String roleAdmin = 'admin';
 }
 
 /// Saves and reads user details and logged-in state in SharedPreferences.
@@ -27,6 +31,7 @@ class UserPreferencesService {
     required String email,
     String fullName = '',
     String dateOfBirth = '',
+    String role = UserPrefsKeys.roleUser,
   }) async {
     final prefs = await _instance;
     await prefs.setBool(UserPrefsKeys.loggedIn, true);
@@ -34,6 +39,7 @@ class UserPreferencesService {
     await prefs.setString(UserPrefsKeys.email, email);
     await prefs.setString(UserPrefsKeys.fullName, fullName);
     await prefs.setString(UserPrefsKeys.dateOfBirth, dateOfBirth);
+    await prefs.setString(UserPrefsKeys.role, role);
   }
 
   /// Clears user data and logged-in state. Call on logout.
@@ -44,6 +50,7 @@ class UserPreferencesService {
     await prefs.remove(UserPrefsKeys.email);
     await prefs.remove(UserPrefsKeys.fullName);
     await prefs.remove(UserPrefsKeys.dateOfBirth);
+    await prefs.remove(UserPrefsKeys.role);
   }
 
   /// True if the user has already accepted or declined the terms (show terms only once).
@@ -59,10 +66,17 @@ class UserPreferencesService {
   }
 
   /// Update only full name and/or date of birth in local storage (e.g. after Edit Profile).
-  static Future<void> updateProfileData({String? fullName, String? dateOfBirth}) async {
+  static Future<void> updateProfileData({
+    String? fullName,
+    String? dateOfBirth,
+  }) async {
     final prefs = await _instance;
-    if (fullName != null) await prefs.setString(UserPrefsKeys.fullName, fullName);
-    if (dateOfBirth != null) await prefs.setString(UserPrefsKeys.dateOfBirth, dateOfBirth);
+    if (fullName != null) {
+      await prefs.setString(UserPrefsKeys.fullName, fullName);
+    }
+    if (dateOfBirth != null) {
+      await prefs.setString(UserPrefsKeys.dateOfBirth, dateOfBirth);
+    }
   }
 
   /// Whether the user is considered logged in (from prefs).
@@ -91,6 +105,16 @@ class UserPreferencesService {
     return prefs.getString(UserPrefsKeys.dateOfBirth);
   }
 
+  static Future<String?> get role async {
+    final prefs = await _instance;
+    return prefs.getString(UserPrefsKeys.role);
+  }
+
+  static Future<bool> get isAdmin async {
+    final prefs = await _instance;
+    return prefs.getString(UserPrefsKeys.role) == UserPrefsKeys.roleAdmin;
+  }
+
   /// All stored user fields as a map (for convenience).
   static Future<Map<String, String>> getUserMap() async {
     final prefs = await _instance;
@@ -98,7 +122,10 @@ class UserPreferencesService {
       UserPrefsKeys.uid: prefs.getString(UserPrefsKeys.uid) ?? '',
       UserPrefsKeys.email: prefs.getString(UserPrefsKeys.email) ?? '',
       UserPrefsKeys.fullName: prefs.getString(UserPrefsKeys.fullName) ?? '',
-      UserPrefsKeys.dateOfBirth: prefs.getString(UserPrefsKeys.dateOfBirth) ?? '',
+      UserPrefsKeys.dateOfBirth:
+          prefs.getString(UserPrefsKeys.dateOfBirth) ?? '',
+      UserPrefsKeys.role:
+          prefs.getString(UserPrefsKeys.role) ?? UserPrefsKeys.roleUser,
     };
   }
 }
