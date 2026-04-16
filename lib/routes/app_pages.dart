@@ -7,8 +7,10 @@ import '../pages/terms/terms_page.dart';
 import '../pages/choose_plan/choose_plan_page.dart';
 import '../pages/choose_plan/controllers/choose_plan_controller.dart';
 import '../pages/admin/admin_main_page.dart';
+import '../pages/admin/admin_coupon_management_page.dart';
 import '../pages/admin/admin_payment_overview_page.dart';
 import '../pages/admin/admin_subscription_management_page.dart';
+import '../pages/admin/controllers/admin_coupon_management_controller.dart';
 import '../pages/admin/controllers/admin_subscription_management_controller.dart';
 import '../pages/main/main_page.dart';
 import '../pages/payments/payment_history_page.dart';
@@ -77,6 +79,14 @@ class AppPages {
       page: () => const AdminSubscriptionManagementPage(),
       binding: BindingsBuilder(() {
         Get.put(AdminSubscriptionManagementController());
+      }),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage<AdminCouponManagementPage>(
+      name: AppRoutes.adminCoupons,
+      page: () => const AdminCouponManagementPage(),
+      binding: BindingsBuilder(() {
+        Get.put(AdminCouponManagementController());
       }),
       transition: Transition.rightToLeft,
     ),

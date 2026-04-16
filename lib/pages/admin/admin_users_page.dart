@@ -22,6 +22,7 @@ class AdminUsersPage extends GetView<AdminUsersController> {
               children: [
                 const Text(
                   'Registered Users',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
@@ -31,6 +32,7 @@ class AdminUsersPage extends GetView<AdminUsersController> {
                 const SizedBox(height: 6),
                 Text(
                   'View every registered user along with subscriptions, posts and swap activity.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,

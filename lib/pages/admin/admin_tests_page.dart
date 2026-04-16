@@ -21,6 +21,7 @@ class AdminTestsPage extends GetView<AdminTestsController> {
               children: [
                 const Text(
                   'Tests Management',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
@@ -30,6 +31,7 @@ class AdminTestsPage extends GetView<AdminTestsController> {
                 const SizedBox(height: 6),
                 Text(
                   'Review active test posts and completed swap records.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,

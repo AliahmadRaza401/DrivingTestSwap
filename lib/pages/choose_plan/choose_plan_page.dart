@@ -45,6 +45,12 @@ class ChoosePlanPage extends GetView<ChoosePlanController> {
                               );
                             }),
                             if (controller.plans.isEmpty) _buildEmptyState(),
+                            if (selectedPlan != null) ...[
+                              const SizedBox(height: 4),
+                              _buildCouponCard(),
+                              const SizedBox(height: 16),
+                              _buildPriceSummaryCard(),
+                            ],
                             const SizedBox(height: 16),
                             _buildPolicyCard(),
                             const SizedBox(height: 24),
@@ -284,6 +290,188 @@ class ChoosePlanPage extends GetView<ChoosePlanController> {
     );
   }
 
+  Widget _buildCouponCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Apply Coupon',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Enter a coupon code to get a fixed discount on the selected plan.',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller.couponTextController,
+                  onChanged: controller.updateCouponCode,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    hintText: 'Enter coupon code',
+                    filled: true,
+                    fillColor: AppColors.background,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              FilledButton(
+                onPressed: controller.isApplyingCoupon.value
+                    ? null
+                    : controller.applyCoupon,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(98, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: controller.isApplyingCoupon.value
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    : const Text('Apply'),
+              ),
+            ],
+          ),
+          if (controller.appliedCoupon.value != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.success.withValues(alpha: 0.24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${controller.appliedCoupon.value!.name} applied',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${controller.appliedCoupon.value!.code} • Save ${controller.formattedDiscountPrice}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: controller.removeCoupon,
+                    child: const Text('Remove'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceSummaryCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          _SummaryRow(
+            label: 'Plan price',
+            value: controller.formattedOriginalPrice,
+          ),
+          const SizedBox(height: 8),
+          _SummaryRow(
+            label: 'Coupon discount',
+            value: '- ${controller.formattedDiscountPrice}',
+            valueColor: controller.discountValue > 0
+                ? AppColors.success
+                : AppColors.textPrimary,
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1),
+          ),
+          _SummaryRow(
+            label: 'Total to pay',
+            value: controller.formattedFinalPrice,
+            isBold: true,
+            valueColor: AppColors.primary,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFooterButtons(SubscriptionPlan? plan) {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -325,7 +513,7 @@ class ChoosePlanPage extends GetView<ChoosePlanController> {
                   : Text(
                       plan == null
                           ? 'No plans available'
-                          : 'Continue with ${plan.title} – ${plan.price}',
+                          : 'Continue with ${plan.title} – ${controller.formattedFinalPrice}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -456,8 +644,8 @@ class _PlanCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        data.title,
+                    Text(
+                      data.title,
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
@@ -479,7 +667,7 @@ class _PlanCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      "£${data.price}",
+                      data.price.startsWith('£') ? data.price : '£${data.price}',
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -537,6 +725,46 @@ class _PlanCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.isBold = false,
+    this.valueColor = AppColors.textPrimary,
+  });
+
+  final String label;
+  final String value;
+  final bool isBold;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: isBold ? FontWeight.w800 : FontWeight.w700,
+            color: valueColor,
+          ),
+        ),
+      ],
     );
   }
 }

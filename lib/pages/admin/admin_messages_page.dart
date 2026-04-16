@@ -30,10 +30,11 @@ class AdminMessagesPage extends GetView<AdminMessagesController> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const Text(
                       'Messages',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
@@ -43,6 +44,7 @@ class AdminMessagesPage extends GetView<AdminMessagesController> {
                     const SizedBox(height: 6),
                     Text(
                       'View all user conversations from the admin panel.',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,

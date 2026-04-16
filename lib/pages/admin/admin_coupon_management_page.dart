@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../core/services/subscription_plan_service.dart';
+import '../../core/services/coupon_service.dart';
 import '../../core/theme/app_colors.dart';
-import 'subscription/admin_plan_editor_page.dart';
-import 'controllers/admin_subscription_management_controller.dart';
+import 'controllers/admin_coupon_management_controller.dart';
+import 'subscription/admin_coupon_editor_page.dart';
 
-class AdminSubscriptionManagementPage
-    extends GetView<AdminSubscriptionManagementController> {
-  const AdminSubscriptionManagementPage({super.key});
+class AdminCouponManagementPage
+    extends GetView<AdminCouponManagementController> {
+  const AdminCouponManagementPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +20,7 @@ class AdminSubscriptionManagementPage
         scrolledUnderElevation: 0,
         centerTitle: true,
         title: const Text(
-          'Subscription Plans',
+          'Coupon Management',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -31,23 +31,23 @@ class AdminSubscriptionManagementPage
       body: SafeArea(
         child: Obx(
           () => RefreshIndicator(
-            onRefresh: controller.loadPlans,
+            onRefresh: controller.loadCoupons,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
               children: [
-                Text(
-                  'Create, edit, and reorder subscription plans for the user side.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    height: 1.4,
-                  ),
+                _SectionHeader(
+                  title: 'Coupons',
+                  subtitle:
+                      'Create fixed discount coupons and share the generated codes with users.',
+                  actionLabel: 'Add Coupon',
+                  icon: Icons.confirmation_number_rounded,
+                  onPressed: () => _openCouponEditor(context),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
                 if (controller.hasError.value)
-                  _InfoCard(
+                  const _InfoCard(
                     icon: Icons.error_outline_rounded,
-                    title: 'Unable to load subscription data',
+                    title: 'Unable to load coupons',
                     subtitle: 'Pull to refresh and try again.',
                     color: AppColors.error,
                   )
@@ -56,37 +56,26 @@ class AdminSubscriptionManagementPage
                     padding: EdgeInsets.only(top: 80),
                     child: Center(child: CircularProgressIndicator()),
                   )
+                else if (controller.coupons.isEmpty)
+                  const _InfoCard(
+                    icon: Icons.sell_outlined,
+                    title: 'No coupons yet',
+                    subtitle:
+                        'Create a coupon code so users can apply a discount during purchase.',
+                    color: AppColors.textSecondary,
+                  )
                 else
-                  ...[
-                    _SectionHeader(
-                      title: 'Plans',
-                      subtitle: 'These plans appear on the choose your plan page.',
-                      actionLabel: 'Add Plan',
-                      icon: Icons.card_membership_rounded,
-                      onPressed: () => _openPlanEditor(context),
-                    ),
-                    const SizedBox(height: 12),
-                    if (controller.plans.isEmpty)
-                      _InfoCard(
-                        icon: Icons.card_membership_outlined,
-                        title: 'No plans yet',
-                        subtitle:
-                            'Create your first subscription plan or load the default plan set.',
-                        color: AppColors.textSecondary,
-                      )
-                    else
-                      ...controller.plans.map(
-                        (plan) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _PlanManagementCard(
-                            plan: plan,
-                            onEdit: () =>
-                                _openPlanEditor(context, existing: plan),
-                            onDelete: () => _confirmDelete(plan),
-                          ),
-                        ),
+                  ...controller.coupons.map(
+                    (coupon) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _CouponManagementCard(
+                        coupon: coupon,
+                        onEdit: () =>
+                            _openCouponEditor(context, existing: coupon),
+                        onDelete: () => _confirmDeleteCoupon(coupon),
                       ),
-                  ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -95,11 +84,11 @@ class AdminSubscriptionManagementPage
     );
   }
 
-  Future<void> _confirmDelete(SubscriptionPlan plan) async {
+  Future<void> _confirmDeleteCoupon(CouponRecord coupon) async {
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
-        title: const Text('Delete plan?'),
-        content: Text('Remove "${plan.title}" from subscription plans?'),
+        title: const Text('Delete coupon?'),
+        content: Text('Remove coupon code "${coupon.code}"?'),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
@@ -113,19 +102,19 @@ class AdminSubscriptionManagementPage
       ),
     );
     if (confirmed == true) {
-      await controller.deletePlan(plan.id);
+      await controller.deleteCoupon(coupon.code);
     }
   }
 
-  Future<void> _openPlanEditor(
+  Future<void> _openCouponEditor(
     BuildContext context, {
-    SubscriptionPlan? existing,
+    CouponRecord? existing,
   }) async {
-    final result = await Get.to<SubscriptionPlan>(
-      () => AdminPlanEditorPage(existing: existing),
+    final result = await Get.to<CouponRecord>(
+      () => AdminCouponEditorPage(existing: existing),
     );
     if (result != null) {
-      await controller.savePlan(result);
+      await controller.saveCoupon(result);
     }
   }
 }
@@ -205,14 +194,14 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _PlanManagementCard extends StatelessWidget {
-  const _PlanManagementCard({
-    required this.plan,
+class _CouponManagementCard extends StatelessWidget {
+  const _CouponManagementCard({
+    required this.coupon,
     required this.onEdit,
     required this.onDelete,
   });
 
-  final SubscriptionPlan plan;
+  final CouponRecord coupon;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -233,10 +222,13 @@ class _PlanManagementCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
+                  color: AppColors.success.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(plan.icon, color: AppColors.primary),
+                child: const Icon(
+                  Icons.sell_rounded,
+                  color: AppColors.success,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -244,7 +236,7 @@ class _PlanManagementCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      plan.title,
+                      coupon.name,
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -253,9 +245,10 @@ class _PlanManagementCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${plan.price} • ${plan.durationLabel}',
+                      coupon.code,
                       style: TextStyle(
                         fontSize: 13,
+                        letterSpacing: 1,
                         color: AppColors.textSecondary,
                       ),
                     ),
@@ -280,51 +273,18 @@ class _PlanManagementCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               _StatusChip(
-                label: plan.isActive ? 'Active' : 'Inactive',
-                color: plan.isActive ? AppColors.success : AppColors.warning,
+                label: coupon.isActive ? 'Active' : 'Inactive',
+                color: coupon.isActive ? AppColors.success : AppColors.warning,
               ),
-              if (plan.popular)
-                const _StatusChip(
-                  label: 'Most Popular',
-                  color: AppColors.primary,
-                ),
-              if (plan.savePercent != null)
-                _StatusChip(
-                  label: 'Save ${plan.savePercent}%',
-                  color: AppColors.success,
-                ),
               _StatusChip(
-                label: 'Sort ${plan.sortOrder}',
+                label: 'Discount ${coupon.formattedDiscount}',
+                color: AppColors.primary,
+              ),
+              _StatusChip(
+                label: 'Used ${coupon.usageCount}',
                 color: AppColors.textSecondary,
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          ...plan.features.map(
-            (feature) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    size: 16,
-                    color: plan.isGreenCheck
-                        ? AppColors.success
-                        : AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      feature,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),

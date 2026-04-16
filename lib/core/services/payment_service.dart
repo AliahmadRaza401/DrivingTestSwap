@@ -13,6 +13,12 @@ abstract class FirestorePayments {
   static const String planTitle = 'planTitle';
   static const String amount = 'amount';
   static const String amountValue = 'amountValue';
+  static const String originalAmount = 'originalAmount';
+  static const String originalAmountValue = 'originalAmountValue';
+  static const String discountAmount = 'discountAmount';
+  static const String discountAmountValue = 'discountAmountValue';
+  static const String couponCode = 'couponCode';
+  static const String couponName = 'couponName';
   static const String currency = 'currency';
   static const String period = 'period';
   static const String status = 'status';
@@ -30,6 +36,12 @@ class PaymentRecord {
     required this.planTitle,
     required this.amount,
     required this.amountValue,
+    required this.originalAmount,
+    required this.originalAmountValue,
+    required this.discountAmount,
+    required this.discountAmountValue,
+    required this.couponCode,
+    required this.couponName,
     required this.currency,
     required this.period,
     required this.status,
@@ -45,6 +57,12 @@ class PaymentRecord {
   final String planTitle;
   final String amount;
   final double amountValue;
+  final String originalAmount;
+  final double originalAmountValue;
+  final String discountAmount;
+  final double discountAmountValue;
+  final String couponCode;
+  final String couponName;
   final String currency;
   final String period;
   final String status;
@@ -65,6 +83,21 @@ class PaymentRecord {
       amount: data[FirestorePayments.amount] as String? ?? '0.00',
       amountValue:
           (data[FirestorePayments.amountValue] as num?)?.toDouble() ?? 0,
+      originalAmount:
+          data[FirestorePayments.originalAmount] as String? ??
+          data[FirestorePayments.amount] as String? ??
+          '0.00',
+      originalAmountValue:
+          (data[FirestorePayments.originalAmountValue] as num?)?.toDouble() ??
+          (data[FirestorePayments.amountValue] as num?)?.toDouble() ??
+          0,
+      discountAmount:
+          data[FirestorePayments.discountAmount] as String? ?? '£0.00',
+      discountAmountValue:
+          (data[FirestorePayments.discountAmountValue] as num?)?.toDouble() ??
+          0,
+      couponCode: data[FirestorePayments.couponCode] as String? ?? '',
+      couponName: data[FirestorePayments.couponName] as String? ?? '',
       currency: data[FirestorePayments.currency] as String? ?? 'gbp',
       period: data[FirestorePayments.period] as String? ?? '',
       status: data[FirestorePayments.status] as String? ?? 'paid',
@@ -88,11 +121,17 @@ class PaymentService {
     required String amount,
     required String currency,
     required String period,
+    String? originalAmount,
+    String? discountAmount,
+    String? couponCode,
+    String? couponName,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return;
     final fullName = await UserPreferencesService.fullName ?? '';
     final normalizedAmount = normalizeAmount(amount);
+    final normalizedOriginalAmount = normalizeAmount(originalAmount ?? amount);
+    final normalizedDiscountAmount = normalizeAmount(discountAmount ?? '0');
     await _firestore
         .collection(FirestorePayments.collection)
         .doc(paymentIntentId)
@@ -105,6 +144,16 @@ class PaymentService {
           FirestorePayments.planTitle: planTitle,
           FirestorePayments.amount: formatAmount(amount),
           FirestorePayments.amountValue: normalizedAmount,
+          FirestorePayments.originalAmount: formatAmount(
+            originalAmount ?? amount,
+          ),
+          FirestorePayments.originalAmountValue: normalizedOriginalAmount,
+          FirestorePayments.discountAmount: formatAmount(
+            discountAmount ?? '0',
+          ),
+          FirestorePayments.discountAmountValue: normalizedDiscountAmount,
+          FirestorePayments.couponCode: couponCode ?? '',
+          FirestorePayments.couponName: couponName ?? '',
           FirestorePayments.currency: currency,
           FirestorePayments.period: period,
           FirestorePayments.status: 'paid',

@@ -22,6 +22,7 @@ class AdminPaymentOverviewPage extends StatelessWidget {
         backgroundColor: const Color(0xFFF8FAFC),
         elevation: 0,
         scrolledUnderElevation: 0,
+        centerTitle: true,
         title: const Text(
           'Payment Overview',
           style: TextStyle(
@@ -41,6 +42,10 @@ class AdminPaymentOverviewPage extends StatelessWidget {
           final totalPayment = payments.fold<double>(
             0,
             (sum, payment) => sum + payment.amountValue,
+          );
+          final totalDiscount = payments.fold<double>(
+            0,
+            (sum, payment) => sum + payment.discountAmountValue,
           );
           if (payments.isEmpty) {
             return Center(
@@ -98,6 +103,14 @@ class AdminPaymentOverviewPage extends StatelessWidget {
                             '${payments.length} transactions',
                             style: TextStyle(
                               fontSize: 13,
+                              color: Colors.white.withValues(alpha: 0.82),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Coupons discounted ${_formatCurrency(totalDiscount)}',
+                            style: TextStyle(
+                              fontSize: 12,
                               color: Colors.white.withValues(alpha: 0.82),
                             ),
                           ),
@@ -176,6 +189,17 @@ class AdminPaymentOverviewPage extends StatelessWidget {
                             color: AppColors.textPrimary,
                           ),
                         ),
+                        if (payment.discountAmountValue > 0) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Coupon: ${payment.couponCode} • Discount: ${payment.discountAmount} • Original: ${payment.originalAmount}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 4),
                         Text(
                           'Transaction: ${payment.paymentIntentId}',

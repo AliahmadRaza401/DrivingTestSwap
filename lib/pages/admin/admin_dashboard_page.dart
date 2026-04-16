@@ -23,6 +23,7 @@ class AdminDashboardPage extends GetView<AdminDashboardController> {
               children: [
                 const Text(
                   'Admin Dashboard',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
@@ -32,6 +33,7 @@ class AdminDashboardPage extends GetView<AdminDashboardController> {
                 const SizedBox(height: 6),
                 Text(
                   'Monitor users, swaps, revenue and platform activity in one place.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.4,
@@ -50,41 +52,47 @@ class AdminDashboardPage extends GetView<AdminDashboardController> {
                 else ...[
                   _HeroCard(stats: controller.stats.value!),
                   const SizedBox(height: 18),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1.2,
-                    children: [
-                      _StatCard(
-                        label: 'Total Users',
-                        value: '${controller.stats.value!.totalUsers}',
-                        icon: Icons.people_alt_rounded,
-                        color: const Color(0xFF2563EB),
-                      ),
-                      _StatCard(
-                        label: 'Total Posts',
-                        value: '${controller.stats.value!.totalPosts}',
-                        icon: Icons.assignment_rounded,
-                        color: const Color(0xFF0F766E),
-                      ),
-                      _StatCard(
-                        label: 'Total Test Swap',
-                        value: '${controller.stats.value!.totalSwaps}',
-                        icon: Icons.swap_horiz_rounded,
-                        color: const Color(0xFFD97706),
-                      ),
-                      _StatCard(
-                        label: 'Total Earning',
-                        value: controller.currency(
-                          controller.stats.value!.totalEarnings,
-                        ),
-                        icon: Icons.payments_rounded,
-                        color: const Color(0xFF7C3AED),
-                      ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = constraints.maxWidth;
+                      final aspectRatio = width < 360 ? 0.88 : 1.02;
+                      return GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        physics: const NeverScrollableScrollPhysics(),
+                        childAspectRatio: aspectRatio,
+                        children: [
+                          _StatCard(
+                            label: 'Total Users',
+                            value: '${controller.stats.value!.totalUsers}',
+                            icon: Icons.people_alt_rounded,
+                            color: const Color(0xFF2563EB),
+                          ),
+                          _StatCard(
+                            label: 'Total Posts',
+                            value: '${controller.stats.value!.totalPosts}',
+                            icon: Icons.assignment_rounded,
+                            color: const Color(0xFF0F766E),
+                          ),
+                          _StatCard(
+                            label: 'Total Test Swap',
+                            value: '${controller.stats.value!.totalSwaps}',
+                            icon: Icons.swap_horiz_rounded,
+                            color: const Color(0xFFD97706),
+                          ),
+                          _StatCard(
+                            label: 'Total Earning',
+                            value: controller.currency(
+                              controller.stats.value!.totalEarnings,
+                            ),
+                            icon: Icons.payments_rounded,
+                            color: const Color(0xFF7C3AED),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 20),
                   _ActivityChartCard(
@@ -209,7 +217,7 @@ class _StatCard extends StatelessWidget {
             ),
             child: Icon(icon, color: color),
           ),
-          const Spacer(),
+          const SizedBox(height: 14),
           Text(
             value,
             maxLines: 1,
@@ -221,9 +229,19 @@ class _StatCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          Expanded(
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
           ),
         ],
       ),

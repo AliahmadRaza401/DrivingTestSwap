@@ -51,6 +51,9 @@ class PaymentHistoryPage extends StatelessWidget {
               return _PaymentCard(
                 title: payment.planTitle,
                 subtitle: '${payment.amount} • ${payment.period}',
+                discount: payment.discountAmountValue > 0
+                    ? 'Coupon ${payment.couponCode} saved ${payment.discountAmount}'
+                    : null,
                 meta: 'Transaction: ${payment.paymentIntentId}',
                 trailing: _formatDate(payment.paidAt),
               );
@@ -66,12 +69,14 @@ class _PaymentCard extends StatelessWidget {
   const _PaymentCard({
     required this.title,
     required this.subtitle,
+    this.discount,
     required this.meta,
     required this.trailing,
   });
 
   final String title;
   final String subtitle;
+  final String? discount;
   final String meta;
   final String trailing;
 
@@ -116,6 +121,17 @@ class _PaymentCard extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (discount != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    discount!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Text(
                   meta,

@@ -12,6 +12,7 @@ abstract class AppRoutes {
   static const String home = '/home';
   static const String adminHome = '/admin-home';
   static const String adminSubscriptions = '/admin-subscriptions';
+  static const String adminCoupons = '/admin-coupons';
   static const String adminPayments = '/admin-payments';
   static const String swap = '/swap';
   static const String settings = '/settings';
