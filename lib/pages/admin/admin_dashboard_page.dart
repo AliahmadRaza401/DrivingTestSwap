@@ -45,10 +45,7 @@ class AdminDashboardPage extends GetView<AdminDashboardController> {
                   _ErrorState(onRetry: controller.loadDashboard)
                 else if (controller.isLoading.value ||
                     controller.stats.value == null)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 64),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
+                  const _DashboardShimmer()
                 else ...[
                   _HeroCard(stats: controller.stats.value!),
                   const SizedBox(height: 18),
@@ -236,10 +233,7 @@ class _StatCard extends StatelessWidget {
                 label,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ),
           ),
@@ -476,6 +470,117 @@ class _ErrorState extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DashboardShimmer extends StatelessWidget {
+  const _DashboardShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        children: [
+          const _ShimmerBox(height: 148, radius: 24),
+          const SizedBox(height: 18),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            physics: const NeverScrollableScrollPhysics(),
+            childAspectRatio: 1.02,
+            children: const [
+              _ShimmerBox(height: 152, radius: 22),
+              _ShimmerBox(height: 152, radius: 22),
+              _ShimmerBox(height: 152, radius: 22),
+              _ShimmerBox(height: 152, radius: 22),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ShimmerBox(width: 190, height: 20, radius: 10),
+                SizedBox(height: 8),
+                _ShimmerBox(width: 260, height: 14, radius: 8),
+                SizedBox(height: 18),
+                _ShimmerBox(height: 210, radius: 20),
+                SizedBox(height: 14),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 10,
+                  children: [
+                    _ShimmerBox(width: 74, height: 12, radius: 999),
+                    _ShimmerBox(width: 72, height: 12, radius: 999),
+                    _ShimmerBox(width: 76, height: 12, radius: 999),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShimmerBox extends StatefulWidget {
+  const _ShimmerBox({this.width, required this.height, required this.radius});
+
+  final double? width;
+  final double height;
+  final double radius;
+
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<_ShimmerBox>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final shimmerPosition = (_controller.value * 2) - 1;
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.radius),
+            gradient: LinearGradient(
+              begin: Alignment(-1.6 + shimmerPosition, -0.2),
+              end: Alignment(1.6 + shimmerPosition, 0.2),
+              colors: const [
+                Color(0xFFE5EAF1),
+                Color(0xFFF5F7FB),
+                Color(0xFFE5EAF1),
+              ],
+              stops: const [0.1, 0.45, 0.9],
+            ),
+          ),
+        );
+      },
     );
   }
 }
