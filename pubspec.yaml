@@ -40,6 +40,7 @@ dependencies:
   cloud_firestore: ^5.5.0
   shared_preferences: ^2.3.3
   flutter_stripe: ^11.5.0
+  geolocator: ^14.0.2
   http:
   url_launcher: ^6.3.0
 

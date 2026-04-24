@@ -62,10 +62,21 @@ class MyPostsPage extends StatelessWidget {
                 stream: PostService.streamMyPosts(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    developer.log('MyPosts stream error', name: 'MyPostsPage', error: snapshot.error, stackTrace: snapshot.stackTrace);
-                    final msg = PostService.userFriendlyPostError(snapshot.error!);
-                    final indexUrl = PostService.getIndexCreationUrlFromError(snapshot.error!);
-                    final isBuilding = PostService.isIndexBuildingError(snapshot.error!);
+                    developer.log(
+                      'MyPosts stream error',
+                      name: 'MyPostsPage',
+                      error: snapshot.error,
+                      stackTrace: snapshot.stackTrace,
+                    );
+                    final msg = PostService.userFriendlyPostError(
+                      snapshot.error!,
+                    );
+                    final indexUrl = PostService.getIndexCreationUrlFromError(
+                      snapshot.error!,
+                    );
+                    final isBuilding = PostService.isIndexBuildingError(
+                      snapshot.error!,
+                    );
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       ToastUtil.error(msg);
                     });
@@ -75,28 +86,49 @@ class MyPostsPage extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                            Icon(
+                              Icons.error_outline,
+                              size: 48,
+                              color: AppColors.error,
+                            ),
                             const SizedBox(height: 12),
                             Text(
-                              isBuilding ? 'Index building' : 'Failed to load posts',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                              isBuilding
+                                  ? 'Index building'
+                                  : 'Failed to load posts',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               msg,
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                             if (indexUrl != null) ...[
                               const SizedBox(height: 20),
                               FilledButton.icon(
-                                onPressed: () => launchUrl(Uri.parse(indexUrl), mode: LaunchMode.externalApplication),
+                                onPressed: () => launchUrl(
+                                  Uri.parse(indexUrl),
+                                  mode: LaunchMode.externalApplication,
+                                ),
                                 icon: const Icon(Icons.open_in_new, size: 20),
-                                label: Text(isBuilding ? 'Check status' : 'Create index'),
+                                label: Text(
+                                  isBuilding ? 'Check status' : 'Create index',
+                                ),
                                 style: FilledButton.styleFrom(
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: AppColors.textOnPrimary,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 12,
+                                  ),
                                 ),
                               ),
                             ],
@@ -105,7 +137,8 @@ class MyPostsPage extends StatelessWidget {
                       ),
                     );
                   }
-                  if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final posts = snapshot.data ?? [];
@@ -116,7 +149,13 @@ class MyPostsPage extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.description_outlined, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.5)),
+                            Icon(
+                              Icons.description_outlined,
+                              size: 64,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               'No posts yet',
@@ -141,7 +180,10 @@ class MyPostsPage extends StatelessWidget {
                     );
                   }
                   return ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     itemCount: posts.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 14),
                     itemBuilder: (context, index) {
@@ -151,10 +193,19 @@ class MyPostsPage extends StatelessWidget {
                         timeAgo: _timeAgo(post.createdAt),
                         onEdit: () async {
                           try {
-                            final result = await Get.to<bool>(() => PostAvailabilityPage(editPost: post));
-                            if (result == true) ToastUtil.success('Post updated');
+                            final result = await Get.to<bool>(
+                              () => PostAvailabilityPage(editPost: post),
+                            );
+                            if (result == true) {
+                              ToastUtil.success('Post updated');
+                            }
                           } catch (e, st) {
-                            developer.log('Edit post failed', name: 'MyPostsPage', error: e, stackTrace: st);
+                            developer.log(
+                              'Edit post failed',
+                              name: 'MyPostsPage',
+                              error: e,
+                              stackTrace: st,
+                            );
                             ToastUtil.error(_errorMessage(e));
                           }
                         },
@@ -162,7 +213,9 @@ class MyPostsPage extends StatelessWidget {
                           final confirm = await Get.dialog<bool>(
                             AlertDialog(
                               title: const Text('Delete post?'),
-                              content: const Text('This post will be removed from the noticeboard.'),
+                              content: const Text(
+                                'This post will be removed from the noticeboard.',
+                              ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Get.back(result: false),
@@ -170,7 +223,10 @@ class MyPostsPage extends StatelessWidget {
                                 ),
                                 TextButton(
                                   onPressed: () => Get.back(result: true),
-                                  child: Text('Delete', style: TextStyle(color: AppColors.error)),
+                                  child: Text(
+                                    'Delete',
+                                    style: TextStyle(color: AppColors.error),
+                                  ),
                                 ),
                               ],
                             ),
@@ -180,7 +236,12 @@ class MyPostsPage extends StatelessWidget {
                               await PostService.deletePost(post.id);
                               ToastUtil.success('Post deleted');
                             } catch (e, st) {
-                              developer.log('Delete post failed', name: 'MyPostsPage', error: e, stackTrace: st);
+                              developer.log(
+                                'Delete post failed',
+                                name: 'MyPostsPage',
+                                error: e,
+                                stackTrace: st,
+                              );
                               ToastUtil.error(_errorMessage(e));
                             }
                           }
@@ -214,7 +275,9 @@ class _PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final location = post.testCentre;
-    final distance = post.preferredArea.isNotEmpty ? post.preferredArea : null;
+    final preferredArea = post.preferredArea.isNotEmpty
+        ? post.preferredArea
+        : null;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -271,11 +334,19 @@ class _PostCard extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.edit_outlined, color: AppColors.primary, size: 22),
+                icon: Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
                 onPressed: onEdit,
               ),
               IconButton(
-                icon: Icon(Icons.delete_outline, color: AppColors.error, size: 22),
+                icon: Icon(
+                  Icons.delete_outline,
+                  color: AppColors.error,
+                  size: 22,
+                ),
                 onPressed: onDelete,
               ),
             ],
@@ -283,36 +354,52 @@ class _PostCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              Icon(Icons.location_on_outlined, size: 18, color: AppColors.textSecondary),
+              Icon(
+                Icons.location_on_outlined,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   location,
-                  style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
-              if (distance != null)
-                Text(
-                  '($distance)',
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                ),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: 6),
               Text(
                 post.date,
-                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
               ),
               const SizedBox(width: 16),
-              Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
+              Icon(
+                Icons.access_time_rounded,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
               const SizedBox(width: 6),
               Text(
                 post.time,
-                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),
@@ -328,6 +415,27 @@ class _PostCard extends StatelessWidget {
                   ),
                   TextSpan(
                     text: post.lookingFor,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (preferredArea != null) ...[
+            const SizedBox(height: 8),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13),
+                children: [
+                  TextSpan(
+                    text: 'Preferred area: ',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                  TextSpan(
+                    text: preferredArea,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w500,

@@ -47,5 +47,7 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>This app uses the camera so you can capture and upload photos related to your driving test bookings and profile.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app uses your location to show how far each test centre is from you.</string>
 </dict>
 </plist>

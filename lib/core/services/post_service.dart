@@ -9,6 +9,8 @@ abstract class FirestorePosts {
   static const String collection = 'swap_posts';
   static const String userId = 'userId';
   static const String testCentre = 'testCentre';
+  static const String testCentreLat = 'testCentreLat';
+  static const String testCentreLng = 'testCentreLng';
   static const String date = 'date';
   static const String time = 'time';
   static const String lookingFor = 'lookingFor';
@@ -26,6 +28,8 @@ class SwapPost {
     required this.id,
     required this.userId,
     required this.testCentre,
+    this.testCentreLat,
+    this.testCentreLng,
     required this.date,
     required this.time,
     required this.lookingFor,
@@ -40,6 +44,8 @@ class SwapPost {
   final String id;
   final String userId;
   final String testCentre;
+  final double? testCentreLat;
+  final double? testCentreLng;
   final String date;
   final String time;
   final String lookingFor;
@@ -50,18 +56,25 @@ class SwapPost {
   final String creatorName;
   final String creatorInitials;
 
+  bool get hasTestCentreLocation =>
+      testCentreLat != null && testCentreLng != null;
+
   factory SwapPost.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
     return SwapPost(
       id: doc.id,
       userId: data[FirestorePosts.userId] as String? ?? '',
       testCentre: data[FirestorePosts.testCentre] as String? ?? '',
+      testCentreLat: (data[FirestorePosts.testCentreLat] as num?)?.toDouble(),
+      testCentreLng: (data[FirestorePosts.testCentreLng] as num?)?.toDouble(),
       date: data[FirestorePosts.date] as String? ?? '',
       time: data[FirestorePosts.time] as String? ?? '',
       lookingFor: data[FirestorePosts.lookingFor] as String? ?? '',
       preferredArea: data[FirestorePosts.preferredArea] as String? ?? '',
       notes: data[FirestorePosts.notes] as String? ?? '',
-      createdAt: (data[FirestorePosts.createdAt] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt:
+          (data[FirestorePosts.createdAt] as Timestamp?)?.toDate() ??
+          DateTime.now(),
       updatedAt: (data[FirestorePosts.updatedAt] as Timestamp?)?.toDate(),
       creatorName: data[FirestorePosts.creatorName] as String? ?? '',
       creatorInitials: data[FirestorePosts.creatorInitials] as String? ?? '?',
@@ -69,18 +82,20 @@ class SwapPost {
   }
 
   Map<String, dynamic> toMap() => {
-        FirestorePosts.userId: userId,
-        FirestorePosts.testCentre: testCentre,
-        FirestorePosts.date: date,
-        FirestorePosts.time: time,
-        FirestorePosts.lookingFor: lookingFor,
-        FirestorePosts.preferredArea: preferredArea,
-        FirestorePosts.notes: notes,
-        FirestorePosts.createdAt: Timestamp.fromDate(createdAt),
-        FirestorePosts.updatedAt: Timestamp.fromDate(updatedAt),
-        FirestorePosts.creatorName: creatorName,
-        FirestorePosts.creatorInitials: creatorInitials,
-      };
+    FirestorePosts.userId: userId,
+    FirestorePosts.testCentre: testCentre,
+    FirestorePosts.testCentreLat: testCentreLat,
+    FirestorePosts.testCentreLng: testCentreLng,
+    FirestorePosts.date: date,
+    FirestorePosts.time: time,
+    FirestorePosts.lookingFor: lookingFor,
+    FirestorePosts.preferredArea: preferredArea,
+    FirestorePosts.notes: notes,
+    FirestorePosts.createdAt: Timestamp.fromDate(createdAt),
+    FirestorePosts.updatedAt: Timestamp.fromDate(updatedAt),
+    FirestorePosts.creatorName: creatorName,
+    FirestorePosts.creatorInitials: creatorInitials,
+  };
 }
 
 class PostService {
@@ -92,7 +107,11 @@ class PostService {
   static String? get _uid => _auth.currentUser?.uid;
 
   static void _logPostError(String operation, Object e, StackTrace st) {
-    developer.log('PostService.$operation failed: $e', name: 'PostService', stackTrace: st);
+    developer.log(
+      'PostService.$operation failed: $e',
+      name: 'PostService',
+      stackTrace: st,
+    );
     if (kDebugMode) {
       debugPrint('[PostService.$operation] ERROR: $e');
       debugPrint('[PostService.$operation] StackTrace: $st');
@@ -120,7 +139,9 @@ class PostService {
   /// Extracts the Firebase Console index URL from the Firestore error message, if present.
   static String? getIndexCreationUrlFromError(Object e) {
     final s = e.toString();
-    final match = RegExp(r'https://console\.firebase\.google\.com[^\s\)\]]+').firstMatch(s);
+    final match = RegExp(
+      r'https://console\.firebase\.google\.com[^\s\)\]]+',
+    ).firstMatch(s);
     return match?.group(0);
   }
 
@@ -128,6 +149,8 @@ class PostService {
   /// Throws on failure (no user, or Firestore error).
   static Future<String> createPost({
     required String testCentre,
+    required double testCentreLat,
+    required double testCentreLng,
     required String date,
     required String time,
     required String lookingFor,
@@ -147,6 +170,8 @@ class PostService {
       final ref = await _firestore.collection(FirestorePosts.collection).add({
         FirestorePosts.userId: uid,
         FirestorePosts.testCentre: testCentre,
+        FirestorePosts.testCentreLat: testCentreLat,
+        FirestorePosts.testCentreLng: testCentreLng,
         FirestorePosts.date: date,
         FirestorePosts.time: time,
         FirestorePosts.lookingFor: lookingFor,
@@ -175,9 +200,9 @@ class PostService {
         .snapshots()
         .map((snap) => snap.docs.map((d) => SwapPost.fromFirestore(d)).toList())
         .handleError((e, st) {
-      _logPostError('streamMyPosts', e, st);
-      throw e;
-    });
+          _logPostError('streamMyPosts', e, st);
+          throw e;
+        });
   }
 
   /// Stream of other users' posts (exclude current user) for Noticeboard.
@@ -194,14 +219,17 @@ class PostService {
               .toList();
         })
         .handleError((e, st) {
-      _logPostError('streamOtherUsersPosts', e, st);
-      throw e;
-    });
+          _logPostError('streamOtherUsersPosts', e, st);
+          throw e;
+        });
   }
 
   /// Get a single post by id (for edit).
   static Future<SwapPost?> getPost(String postId) async {
-    final doc = await _firestore.collection(FirestorePosts.collection).doc(postId).get();
+    final doc = await _firestore
+        .collection(FirestorePosts.collection)
+        .doc(postId)
+        .get();
     if (!doc.exists || doc.data() == null) return null;
     return SwapPost.fromFirestore(doc);
   }
@@ -210,6 +238,8 @@ class PostService {
   static Future<void> updatePost({
     required String postId,
     required String testCentre,
+    required double testCentreLat,
+    required double testCentreLng,
     required String date,
     required String time,
     required String lookingFor,
@@ -225,13 +255,17 @@ class PostService {
     try {
       final ref = _firestore.collection(FirestorePosts.collection).doc(postId);
       final doc = await ref.get();
-      if (!doc.exists || (doc.data()?[FirestorePosts.userId] as String?) != uid) {
-        final msg = 'Post not found or you do not have permission to update it.';
+      if (!doc.exists ||
+          (doc.data()?[FirestorePosts.userId] as String?) != uid) {
+        final msg =
+            'Post not found or you do not have permission to update it.';
         _logPostError('updatePost', msg, StackTrace.current);
         throw Exception(msg);
       }
       await ref.update({
         FirestorePosts.testCentre: testCentre,
+        FirestorePosts.testCentreLat: testCentreLat,
+        FirestorePosts.testCentreLng: testCentreLng,
         FirestorePosts.date: date,
         FirestorePosts.time: time,
         FirestorePosts.lookingFor: lookingFor,
@@ -254,13 +288,21 @@ class PostService {
       throw Exception(msg);
     }
     try {
-      final doc = await _firestore.collection(FirestorePosts.collection).doc(postId).get();
-      if (!doc.exists || (doc.data()?[FirestorePosts.userId] as String?) != uid) {
-        final msg = 'Post not found or you do not have permission to delete it.';
+      final doc = await _firestore
+          .collection(FirestorePosts.collection)
+          .doc(postId)
+          .get();
+      if (!doc.exists ||
+          (doc.data()?[FirestorePosts.userId] as String?) != uid) {
+        final msg =
+            'Post not found or you do not have permission to delete it.';
         _logPostError('deletePost', msg, StackTrace.current);
         throw Exception(msg);
       }
-      await _firestore.collection(FirestorePosts.collection).doc(postId).delete();
+      await _firestore
+          .collection(FirestorePosts.collection)
+          .doc(postId)
+          .delete();
     } catch (e, st) {
       _logPostError('deletePost', e, st);
       rethrow;

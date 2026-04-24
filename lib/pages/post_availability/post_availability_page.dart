@@ -1,11 +1,14 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/google_places_service.dart';
 import '../../core/services/post_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/toast_util.dart';
+import 'widgets/test_centre_picker_sheet.dart';
 import '../../routes/app_routes.dart';
 import '../main/controllers/main_controller.dart';
 
@@ -26,6 +29,8 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
   final _lookingForController = TextEditingController();
   final _preferredAreaController = TextEditingController();
   final _notesController = TextEditingController();
+  double? _selectedTestCentreLat;
+  double? _selectedTestCentreLng;
   bool _loading = false;
 
   @override
@@ -34,6 +39,8 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     final post = widget.editPost;
     if (post != null) {
       _testCentreController.text = post.testCentre;
+      _selectedTestCentreLat = post.testCentreLat;
+      _selectedTestCentreLng = post.testCentreLng;
       _dateController.text = post.date;
       _timeController.text = post.time;
       _lookingForController.text = post.lookingFor;
@@ -66,6 +73,36 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     }
   }
 
+  DateTime? _tryParseUsDate(String value) {
+    final parts = value.trim().split('/');
+    if (parts.length != 3) return null;
+    final month = int.tryParse(parts[0]);
+    final day = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (month == null || day == null || year == null) return null;
+
+    try {
+      return DateTime(year, month, day);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _pickLookingForDate() async {
+    final initialDate =
+        _tryParseUsDate(_lookingForController.text) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null && mounted) {
+      _lookingForController.text =
+          '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
+    }
+  }
+
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
       context: context,
@@ -79,8 +116,31 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     }
   }
 
+  Future<void> _pickTestCentre() async {
+    final selected = await showModalBottomSheet<PlaceDetails>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      builder: (_) => TestCentrePickerSheet(
+        initialQuery: _testCentreController.text.trim(),
+      ),
+    );
+
+    if (selected == null || !mounted) return;
+
+    setState(() {
+      _testCentreController.text = selected.name;
+      _selectedTestCentreLat = selected.latitude;
+      _selectedTestCentreLng = selected.longitude;
+    });
+  }
+
   static String _initialsFromName(String fullName) {
-    final parts = fullName.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    final parts = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '?';
     if (parts.length == 1) {
       final s = parts.first;
@@ -104,12 +164,22 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     final lookingFor = _lookingForController.text.trim();
     final preferredArea = _preferredAreaController.text.trim();
     final notes = _notesController.text.trim();
+    final testCentreLat = _selectedTestCentreLat;
+    final testCentreLng = _selectedTestCentreLng;
+
+    if (testCentreLat == null || testCentreLng == null) {
+      setState(() => _loading = false);
+      ToastUtil.error('Please pick a test centre from the location picker.');
+      return;
+    }
 
     try {
       if (widget.editPost != null) {
         await PostService.updatePost(
           postId: widget.editPost!.id,
           testCentre: testCentre,
+          testCentreLat: testCentreLat,
+          testCentreLng: testCentreLng,
           date: date,
           time: time,
           lookingFor: lookingFor,
@@ -124,11 +194,15 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
       }
 
       final profile = await AuthService.getCurrentUserProfile();
-      final creatorName = profile?['fullName']?.isNotEmpty == true ? profile!['fullName']! : 'User';
+      final creatorName = profile?['fullName']?.isNotEmpty == true
+          ? profile!['fullName']!
+          : 'User';
       final creatorInitials = _initialsFromName(creatorName);
 
       await PostService.createPost(
         testCentre: testCentre,
+        testCentreLat: testCentreLat,
+        testCentreLng: testCentreLng,
         date: date,
         time: time,
         lookingFor: lookingFor,
@@ -147,7 +221,12 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
         }
       });
     } catch (e, st) {
-      developer.log('Post create/update failed', name: 'PostAvailabilityPage', error: e, stackTrace: st);
+      developer.log(
+        'Post create/update failed',
+        name: 'PostAvailabilityPage',
+        error: e,
+        stackTrace: st,
+      );
       if (!mounted) return;
       setState(() => _loading = false);
       ToastUtil.error(_errorMessage(e));
@@ -163,7 +242,11 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary, size: 22),
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: AppColors.textPrimary,
+            size: 22,
+          ),
           onPressed: () => Get.back(),
         ),
         title: const Text(
@@ -190,12 +273,35 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _testCentreController,
+                readOnly: true,
+                onTap: _pickTestCentre,
                 decoration: _inputDecoration(
-                  hint: 'Where is your booked test?',
-                  suffixIcon: Icon(Icons.location_on_outlined, color: AppColors.textSecondary, size: 22),
+                  hint: 'Pick your booked test centre',
+                  suffixIcon: IconButton(
+                    onPressed: _pickTestCentre,
+                    icon: Icon(
+                      Icons.location_searching_outlined,
+                      color: AppColors.textSecondary,
+                      size: 22,
+                    ),
+                  ),
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter test centre' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Pick a test centre'
+                    : null,
               ),
+              if (_selectedTestCentreLat != null &&
+                  _selectedTestCentreLng != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Coordinates saved for distance matching.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -212,11 +318,17 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                           decoration: _inputDecoration(
                             hint: 'mm/dd/yyyy',
                             suffixIcon: IconButton(
-                              icon: Icon(Icons.calendar_today, color: AppColors.textSecondary, size: 22),
+                              icon: Icon(
+                                Icons.calendar_today,
+                                color: AppColors.textSecondary,
+                                size: 22,
+                              ),
                               onPressed: _pickDate,
                             ),
                           ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Select date' : null,
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Select date'
+                              : null,
                         ),
                       ],
                     ),
@@ -235,11 +347,17 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                           decoration: _inputDecoration(
                             hint: '--:-- --',
                             suffixIcon: IconButton(
-                              icon: Icon(Icons.access_time_rounded, color: AppColors.textSecondary, size: 22),
+                              icon: Icon(
+                                Icons.access_time_rounded,
+                                color: AppColors.textSecondary,
+                                size: 22,
+                              ),
                               onPressed: _pickTime,
                             ),
                           ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Select time' : null,
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Select time'
+                              : null,
                         ),
                       ],
                     ),
@@ -251,20 +369,37 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _lookingForController,
+                readOnly: true,
+                onTap: _pickLookingForDate,
                 decoration: _inputDecoration(
-                  hint: 'e.g. Earlier dates',
-                  suffixIcon: Icon(Icons.calendar_today_outlined, color: AppColors.textSecondary, size: 22),
+                  hint: 'Pick an earlier preferred date',
+                  suffixIcon: IconButton(
+                    onPressed: _pickLookingForDate,
+                    icon: Icon(
+                      Icons.calendar_today_outlined,
+                      color: AppColors.textSecondary,
+                      size: 22,
+                    ),
+                  ),
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter what you\'re looking for' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Select the date you are looking for'
+                    : null,
               ),
               const SizedBox(height: 20),
               _buildLabel('Preferred Area'),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _preferredAreaController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: _inputDecoration(
-                  hint: 'e.g. Within 20 miles',
-                  suffixIcon: Icon(Icons.place_outlined, color: AppColors.textSecondary, size: 22),
+                  hint: 'e.g. 20',
+                  suffixIcon: Icon(
+                    Icons.place_outlined,
+                    color: AppColors.textSecondary,
+                    size: 22,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -274,7 +409,8 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                 controller: _notesController,
                 maxLines: 4,
                 decoration: _inputDecoration(
-                  hint: 'e.g. Need a manual car, willing to travel to Coventry..',
+                  hint:
+                      'e.g. Need a manual car, willing to travel to Coventry..',
                 ),
               ),
               const SizedBox(height: 32),
@@ -294,11 +430,21 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                       ? const SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
                         )
                       : Text(
-                          widget.editPost != null ? 'Update Post' : 'Post to Noticeboard',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          widget.editPost != null
+                              ? 'Update Post'
+                              : 'Post to Noticeboard',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                 ),
               ),
@@ -341,10 +487,7 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     );
   }
 
-  InputDecoration _inputDecoration({
-    required String hint,
-    Widget? suffixIcon,
-  }) {
+  InputDecoration _inputDecoration({required String hint, Widget? suffixIcon}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: AppColors.textSecondary),
