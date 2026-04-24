@@ -104,6 +104,11 @@ class ProfilePage extends StatelessWidget {
                 onTap: () => Get.toNamed(AppRoutes.paymentHistory),
               ),
               _buildMenuRow(
+                icon: Icons.history_rounded,
+                label: 'Swap History',
+                onTap: () => Get.toNamed(AppRoutes.swapHistory),
+              ),
+              _buildMenuRow(
                 icon: Icons.help_outline_rounded,
                 label: 'Help & FAQ',
                 onTap: () => Get.toNamed(AppRoutes.helpFaq),

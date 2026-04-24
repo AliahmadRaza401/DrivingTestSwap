@@ -6,9 +6,10 @@ import 'admin_coupon_management_page.dart';
 import 'admin_dashboard_page.dart';
 import 'admin_messages_page.dart';
 import 'admin_payment_overview_page.dart';
+import 'admin_posts_page.dart';
 import 'admin_settings_page.dart';
 import 'admin_subscription_management_page.dart';
-import 'admin_tests_page.dart';
+import 'admin_swaps_page.dart';
 import 'admin_users_page.dart';
 import 'controllers/admin_coupon_management_controller.dart';
 import 'controllers/admin_dashboard_controller.dart';
@@ -37,7 +38,8 @@ class AdminMainPage extends StatelessWidget {
     const pages = <Widget>[
       AdminDashboardPage(),
       AdminUsersPage(),
-      AdminTestsPage(),
+      AdminPostsPage(),
+      AdminSwapsPage(),
       AdminMessagesPage(),
       AdminSettingsPage(),
       AdminPaymentOverviewPage(),
@@ -59,10 +61,16 @@ class AdminMainPage extends StatelessWidget {
         icon: Icons.group_rounded,
       ),
       _AdminDrawerItemData(
-        index: AdminMainController.testsIndex,
-        title: 'Tests',
-        subtitle: 'Posts and swap records',
-        icon: Icons.fact_check_rounded,
+        index: AdminMainController.postsIndex,
+        title: 'Posts',
+        subtitle: 'All added test posts',
+        icon: Icons.assignment_rounded,
+      ),
+      _AdminDrawerItemData(
+        index: AdminMainController.swapsIndex,
+        title: 'Swaps',
+        subtitle: 'All in-progress and completed swaps',
+        icon: Icons.swap_horiz_rounded,
       ),
       _AdminDrawerItemData(
         index: AdminMainController.messagesIndex,
@@ -114,10 +122,7 @@ class AdminMainPage extends StatelessWidget {
       body: Obx(
         () => Stack(
           children: [
-            IndexedStack(
-              index: controller.currentIndex.value,
-              children: pages,
-            ),
+            IndexedStack(index: controller.currentIndex.value, children: pages),
             Positioned(
               top: 18,
               left: 18,
@@ -156,9 +161,7 @@ class _DrawerToggleButton extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.24),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF1D4ED8).withValues(alpha: 0.34),

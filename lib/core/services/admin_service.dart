@@ -80,13 +80,21 @@ class AdminSwapPostRecord {
 class AdminSwapRecord {
   const AdminSwapRecord({
     required this.swap,
+    required this.initiatorName,
     required this.initiatorEmail,
+    required this.targetName,
     required this.targetEmail,
+    required this.initiatorPost,
+    required this.targetPost,
   });
 
   final SwapRecord swap;
-  final String initiatorEmail;
-  final String targetEmail;
+  final String? initiatorName;
+  final String? initiatorEmail;
+  final String? targetName;
+  final String? targetEmail;
+  final SwapPost? initiatorPost;
+  final SwapPost? targetPost;
 }
 
 class AdminTestsOverview {
@@ -111,6 +119,8 @@ class AdminService {
 
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  static String _asString(Object? value) => value?.toString() ?? '';
 
   static bool matchesStaticCredentials({
     required String email,
@@ -290,31 +300,44 @@ class AdminService {
     final postRecords = posts.map((doc) {
       final post = SwapPost.fromFirestore(doc);
       final owner = userMap[post.userId];
+      final ownerName = _asString(owner?[FirestoreUsers.fullName]);
       return AdminSwapPostRecord(
         post: post,
-        ownerEmail: owner?[FirestoreUsers.email] as String? ?? '',
-        ownerName:
-            owner?[FirestoreUsers.fullName] as String? ?? post.creatorName,
+        ownerEmail: _asString(owner?[FirestoreUsers.email]),
+        ownerName: ownerName.isEmpty ? post.creatorName : ownerName,
       );
     }).toList();
+
+    final postMap = {
+      for (final record in postRecords) record.post.id: record.post,
+    };
 
     final swapRecords = swaps.map((doc) {
       final swap = SwapRecord.fromFirestore(doc);
       return AdminSwapRecord(
         swap: swap,
-        initiatorEmail:
-            userMap[swap.initiatorUserId]?[FirestoreUsers.email] as String? ??
-            '',
-        targetEmail:
-            userMap[swap.targetUserId]?[FirestoreUsers.email] as String? ?? '',
+        initiatorName: _asString(
+          userMap[swap.initiatorUserId]?[FirestoreUsers.fullName],
+        ),
+        initiatorEmail: _asString(
+          userMap[swap.initiatorUserId]?[FirestoreUsers.email],
+        ),
+        targetName: _asString(
+          userMap[swap.targetUserId]?[FirestoreUsers.fullName],
+        ),
+        targetEmail: _asString(
+          userMap[swap.targetUserId]?[FirestoreUsers.email],
+        ),
+        initiatorPost: postMap[swap.initiatorPostId],
+        targetPost: postMap[swap.targetPostId],
       );
     }).toList();
 
     final runningSwaps = swapRecords
-        .where((record) => record.swap.status.toLowerCase() != 'completed')
+        .where((record) => !record.swap.isCompleted)
         .toList();
     final completedSwaps = swapRecords
-        .where((record) => record.swap.status.toLowerCase() == 'completed')
+        .where((record) => record.swap.isCompleted)
         .toList();
 
     return AdminTestsOverview(
@@ -336,6 +359,12 @@ class AdminService {
         .collection(FirestoreSwaps.collection)
         .doc(swapId)
         .delete();
+  }
+
+  static Future<void> completeSwap(String swapId) {
+    return _firestore.collection(FirestoreSwaps.collection).doc(swapId).update({
+      FirestoreSwaps.status: FirestoreSwaps.statusCompleted,
+    });
   }
 
   static List<AdminActivityPoint> _buildRecentActivity({

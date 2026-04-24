@@ -14,6 +14,7 @@ import '../pages/admin/controllers/admin_coupon_management_controller.dart';
 import '../pages/admin/controllers/admin_subscription_management_controller.dart';
 import '../pages/main/main_page.dart';
 import '../pages/payments/payment_history_page.dart';
+import '../pages/profile/swap_history_page.dart';
 import '../pages/swap/swap_page.dart';
 import '../pages/settings/settings_page.dart';
 import '../pages/help_faq/help_faq_page.dart';
@@ -62,6 +63,11 @@ class AppPages {
     GetPage<PaymentHistoryPage>(
       name: AppRoutes.paymentHistory,
       page: () => const PaymentHistoryPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage<SwapHistoryPage>(
+      name: AppRoutes.swapHistory,
+      page: () => const SwapHistoryPage(),
       transition: Transition.rightToLeft,
     ),
     GetPage<MainPage>(

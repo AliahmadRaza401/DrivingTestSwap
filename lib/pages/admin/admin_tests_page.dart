@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/services/admin_service.dart';
+import '../../core/services/swap_service.dart';
 import '../../core/theme/app_colors.dart';
 import 'controllers/admin_tests_controller.dart';
 
@@ -30,7 +31,7 @@ class AdminTestsPage extends GetView<AdminTestsController> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Review active test posts and completed swap records.',
+                  'Review active test posts plus all in-progress and completed swaps.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -68,6 +69,7 @@ class AdminTestsPage extends GetView<AdminTestsController> {
                                 controller.testsOverview.value!.runningSwaps,
                             completedSwaps:
                                 controller.testsOverview.value!.completedSwaps,
+                            onComplete: controller.completeSwap,
                             onDelete: controller.deleteSwap,
                           ),
                   ),
@@ -275,11 +277,13 @@ class _SwapsTab extends StatelessWidget {
   const _SwapsTab({
     required this.runningSwaps,
     required this.completedSwaps,
+    required this.onComplete,
     required this.onDelete,
   });
 
   final List<AdminSwapRecord> runningSwaps;
   final List<AdminSwapRecord> completedSwaps;
+  final Future<void> Function(String id) onComplete;
   final Future<void> Function(String id) onDelete;
 
   @override
@@ -295,8 +299,8 @@ class _SwapsTab extends StatelessWidget {
     final sections = <Widget>[
       if (runningSwaps.isNotEmpty) ...[
         const _SectionTitle(
-          title: 'Running swaps',
-          subtitle: 'Swaps that are still active or in progress.',
+          title: 'In Progress swaps',
+          subtitle: 'Swaps that still need to be completed by the users.',
         ),
         const SizedBox(height: 12),
         ...List.generate(
@@ -305,6 +309,7 @@ class _SwapsTab extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 12),
             child: _SwapCard(
               item: runningSwaps[index],
+              onComplete: onComplete,
               onDelete: onDelete,
               accentColor: AppColors.primary,
               iconColor: AppColors.primary,
@@ -328,6 +333,7 @@ class _SwapsTab extends StatelessWidget {
             ),
             child: _SwapCard(
               item: completedSwaps[index],
+              onComplete: onComplete,
               onDelete: onDelete,
               accentColor: AppColors.warning,
               iconColor: AppColors.warning,
@@ -347,22 +353,27 @@ class _SwapsTab extends StatelessWidget {
 class _SwapCard extends StatelessWidget {
   const _SwapCard({
     required this.item,
+    required this.onComplete,
     required this.onDelete,
     required this.accentColor,
     required this.iconColor,
   });
 
   final AdminSwapRecord item;
+  final Future<void> Function(String id) onComplete;
   final Future<void> Function(String id) onDelete;
   final Color accentColor;
   final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
-    final normalizedStatus = item.swap.status.trim().isEmpty
-        ? 'unknown'
-        : item.swap.status;
-    final isCompleted = normalizedStatus.toLowerCase() == 'completed';
+    final normalizedStatus = item.swap.normalizedStatus;
+    final isCompleted = item.swap.isCompleted;
+    final statusLabel = normalizedStatus == FirestoreSwaps.statusInProgress
+        ? 'In progress'
+        : normalizedStatus == FirestoreSwaps.statusCompleted
+        ? 'Completed'
+        : normalizedStatus.replaceAll('_', ' ');
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -381,10 +392,7 @@ class _SwapCard extends StatelessWidget {
               color: accentColor.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              Icons.swap_horiz_rounded,
-              color: iconColor,
-            ),
+            child: Icon(Icons.swap_horiz_rounded, color: iconColor),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -392,7 +400,7 @@ class _SwapCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isCompleted ? 'Completed swap' : 'Running swap',
+                  isCompleted ? 'Completed swap' : 'In progress swap',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -417,12 +425,31 @@ class _SwapCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Status: $normalizedStatus',
+                  'Status: $statusLabel',
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (!isCompleted) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => onComplete(item.swap.id),
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      label: const Text('Complete'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.success,
+                        side: const BorderSide(color: AppColors.success),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -461,10 +488,7 @@ class _SectionTitle extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           subtitle,
-          style: TextStyle(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
       ],
     );

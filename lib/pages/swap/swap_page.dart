@@ -19,6 +19,7 @@ class SwapPage extends StatefulWidget {
 class _SwapPageState extends State<SwapPage> {
   /// Other user's post to swap with (passed from Noticeboard when user taps Swap).
   SwapPost? _selectedTargetPost;
+
   /// Current user's post to give (selected from list at bottom).
   SwapPost? _selectedMyPost;
 
@@ -52,10 +53,14 @@ class _SwapPageState extends State<SwapPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.swap_horiz_rounded, color: AppColors.success, size: 28),
+                  Icon(
+                    Icons.swap_horiz_rounded,
+                    color: AppColors.success,
+                    size: 28,
+                  ),
                   const SizedBox(width: 10),
                   const Text(
-                    'Confirm swap',
+                    'Start swap',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -70,20 +75,46 @@ class _SwapPageState extends State<SwapPage> {
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.person_outline_rounded, size: 20, color: AppColors.primary),
+                    Icon(
+                      Icons.person_outline_rounded,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Your test', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                          Text(
+                            'Your test',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                          Text(my.testCentre, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                          Text('${my.date} • ${my.time}', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                          Text(
+                            my.testCentre,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            '${my.date} • ${my.time}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -98,24 +129,69 @@ class _SwapPageState extends State<SwapPage> {
                 decoration: BoxDecoration(
                   color: AppColors.success.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.success.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.person_rounded, size: 20, color: AppColors.success),
+                    Icon(
+                      Icons.person_rounded,
+                      size: 20,
+                      color: AppColors.success,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('${target.creatorName}\'s test', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                          Text(
+                            '${target.creatorName}\'s test',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                          Text(target.testCentre, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                          Text('${target.date} • ${target.time}', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                          Text(
+                            target.testCentre,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            '${target.date} • ${target.time}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Text(
+                  'This will move the swap into progress. Complete the actual DVSA test change first, then mark the swap as completed from your noticeboard.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -128,7 +204,9 @@ class _SwapPageState extends State<SwapPage> {
                         foregroundColor: AppColors.textPrimary,
                         side: const BorderSide(color: AppColors.border),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: const Text('Cancel'),
                     ),
@@ -141,9 +219,11 @@ class _SwapPageState extends State<SwapPage> {
                         backgroundColor: AppColors.success,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: const Text('Confirm swap'),
+                      child: const Text('Start swap'),
                     ),
                   ),
                 ],
@@ -160,7 +240,7 @@ class _SwapPageState extends State<SwapPage> {
         targetUserId: target.userId,
         targetPostId: target.id,
       );
-      ToastUtil.success('Swap completed');
+      ToastUtil.success('Swap started and moved to in progress');
       Get.offAllNamed(AppRoutes.home);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Get.isRegistered<MainController>()) {
@@ -181,7 +261,11 @@ class _SwapPageState extends State<SwapPage> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary, size: 22),
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: AppColors.textPrimary,
+            size: 22,
+          ),
           onPressed: () => Get.back(),
         ),
         title: const Text(
@@ -272,7 +356,10 @@ class _SwapPageState extends State<SwapPage> {
                       ),
                       Text(
                         'Posted ${_timeAgo(post.createdAt)}',
-                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -282,12 +369,19 @@ class _SwapPageState extends State<SwapPage> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.location_on_outlined, size: 18, color: AppColors.textSecondary),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     post.testCentre,
-                    style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -295,13 +389,33 @@ class _SwapPageState extends State<SwapPage> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
-                Text(post.date, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
+                Text(
+                  post.date,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 const SizedBox(width: 16),
-                Icon(Icons.access_time_rounded, size: 16, color: AppColors.textSecondary),
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 6),
-                Text(post.time, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
+                Text(
+                  post.time,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
               ],
             ),
             if (post.lookingFor.isNotEmpty) ...[
@@ -363,11 +477,15 @@ class _SwapPageState extends State<SwapPage> {
             ),
             child: Text(
               'Error: ${PostService.userFriendlyPostError(snapshot.error!)}',
-              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
             ),
           );
         }
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(child: CircularProgressIndicator()),
@@ -396,7 +514,8 @@ class _SwapPageState extends State<SwapPage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => setState(() => _selectedMyPost = isSelected ? null : post),
+          onTap: () =>
+              setState(() => _selectedMyPost = isSelected ? null : post),
           borderRadius: BorderRadius.circular(14),
           child: Container(
             width: double.infinity,
@@ -411,12 +530,29 @@ class _SwapPageState extends State<SwapPage> {
             ),
             child: Row(
               children: [
-                Radio<SwapPost>(
-                  value: post,
-                  groupValue: _selectedMyPost,
-                  onChanged: (p) => setState(() => _selectedMyPost = p),
-                  activeColor: AppColors.primary,
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.border,
+                      width: 2,
+                    ),
+                  ),
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: isSelected ? 10 : 0,
+                      height: isSelected ? 10 : 0,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
                 ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,13 +568,19 @@ class _SwapPageState extends State<SwapPage> {
                       const SizedBox(height: 4),
                       Text(
                         '${post.date} • ${post.time}',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       if (post.lookingFor.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           'Looking for: ${post.lookingFor}',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ],
@@ -468,7 +610,7 @@ class _SwapPageState extends State<SwapPage> {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: Text(canSwap ? 'Swap' : 'Select both posts above to swap'),
+        child: Text(canSwap ? 'Start swap' : 'Select both posts above to swap'),
       ),
     );
   }
@@ -511,7 +653,8 @@ class _SwapPageState extends State<SwapPage> {
             width: double.infinity,
             child: OutlinedButton(
               onPressed: () async {
-                final hasSubscription = await AuthService.hasActiveSubscription();
+                final hasSubscription =
+                    await AuthService.hasActiveSubscription();
                 if (hasSubscription) {
                   Get.to(() => const PostAvailabilityPage());
                 } else {

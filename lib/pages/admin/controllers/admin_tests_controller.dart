@@ -48,6 +48,7 @@ class AdminTestsController extends GetxController {
     final confirmed = await _confirmAction(
       title: 'Delete swap record?',
       message: 'This will permanently remove the swap record.',
+      confirmLabel: 'Delete',
     );
     if (confirmed != true) return;
     await AdminService.deleteSwap(id);
@@ -55,9 +56,22 @@ class AdminTestsController extends GetxController {
     await loadTests();
   }
 
+  Future<void> completeSwap(String id) async {
+    final confirmed = await _confirmAction(
+      title: 'Complete swap?',
+      message: 'This will move the running swap into completed swaps.',
+      confirmLabel: 'Complete',
+    );
+    if (confirmed != true) return;
+    await AdminService.completeSwap(id);
+    ToastUtil.success('Swap marked as completed');
+    await loadTests();
+  }
+
   Future<bool?> _confirmAction({
     required String title,
     required String message,
+    String confirmLabel = 'Delete',
   }) {
     return Get.dialog<bool>(
       AlertDialog(
@@ -70,7 +84,7 @@ class AdminTestsController extends GetxController {
           ),
           FilledButton(
             onPressed: () => Get.back(result: true),
-            child: const Text('Delete'),
+            child: Text(confirmLabel),
           ),
         ],
       ),

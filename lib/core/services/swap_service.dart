@@ -6,6 +6,8 @@ import 'post_service.dart';
 /// Firestore collection and field names for swap records.
 abstract class FirestoreSwaps {
   static const String collection = 'swaps';
+  static const String statusInProgress = 'in_progress';
+  static const String statusCompleted = 'completed';
   static const String initiatorUserId = 'initiatorUserId';
   static const String initiatorPostId = 'initiatorPostId';
   static const String targetUserId = 'targetUserId';
@@ -14,7 +16,7 @@ abstract class FirestoreSwaps {
   static const String status = 'status';
 }
 
-/// A completed swap between two users' posts.
+/// A swap record between two users' posts.
 class SwapRecord {
   SwapRecord({
     required this.id,
@@ -23,7 +25,7 @@ class SwapRecord {
     required this.targetUserId,
     required this.targetPostId,
     required this.createdAt,
-    this.status = 'completed',
+    this.status = FirestoreSwaps.statusInProgress,
   });
 
   final String id;
@@ -34,6 +36,14 @@ class SwapRecord {
   final DateTime createdAt;
   final String status;
 
+  bool get isCompleted => normalizedStatus == FirestoreSwaps.statusCompleted;
+  bool get isInProgress => normalizedStatus == FirestoreSwaps.statusInProgress;
+  String get normalizedStatus {
+    final value = status.trim().toLowerCase();
+    if (value.isEmpty) return FirestoreSwaps.statusInProgress;
+    return value;
+  }
+
   factory SwapRecord.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
     return SwapRecord(
@@ -42,19 +52,29 @@ class SwapRecord {
       initiatorPostId: data[FirestoreSwaps.initiatorPostId] as String? ?? '',
       targetUserId: data[FirestoreSwaps.targetUserId] as String? ?? '',
       targetPostId: data[FirestoreSwaps.targetPostId] as String? ?? '',
-      createdAt: (data[FirestoreSwaps.createdAt] as Timestamp?)?.toDate() ?? DateTime.now(),
-      status: data[FirestoreSwaps.status] as String? ?? 'completed',
+      createdAt:
+          (data[FirestoreSwaps.createdAt] as Timestamp?)?.toDate() ??
+          DateTime.now(),
+      status:
+          data[FirestoreSwaps.status] as String? ??
+          FirestoreSwaps.statusInProgress,
     );
   }
 
   /// True if the current user is the initiator of this swap.
   bool isInitiator(String currentUserId) => initiatorUserId == currentUserId;
+
   /// The "other" user's id (the one we swapped with).
   String otherUserId(String currentUserId) =>
       initiatorUserId == currentUserId ? targetUserId : initiatorUserId;
+
   /// The post id that belongs to the other user (the slot we got).
   String otherPostId(String currentUserId) =>
       initiatorUserId == currentUserId ? targetPostId : initiatorPostId;
+
+  /// The current user's post id used in the swap.
+  String myPostId(String currentUserId) =>
+      initiatorUserId == currentUserId ? initiatorPostId : targetPostId;
 }
 
 class SwapService {
@@ -78,9 +98,30 @@ class SwapService {
       FirestoreSwaps.targetUserId: targetUserId,
       FirestoreSwaps.targetPostId: targetPostId,
       FirestoreSwaps.createdAt: FieldValue.serverTimestamp(),
-      FirestoreSwaps.status: 'completed',
+      FirestoreSwaps.status: FirestoreSwaps.statusInProgress,
     });
     return ref.id;
+  }
+
+  static Future<void> completeSwap(String swapId) async {
+    final uid = _uid;
+    if (uid == null) throw Exception('Not signed in');
+
+    final ref = _firestore.collection(FirestoreSwaps.collection).doc(swapId);
+    final doc = await ref.get();
+    if (!doc.exists || doc.data() == null) {
+      throw Exception('Swap record not found.');
+    }
+
+    final swap = SwapRecord.fromFirestore(doc);
+    final isParticipant =
+        swap.initiatorUserId == uid || swap.targetUserId == uid;
+    if (!isParticipant) {
+      throw Exception('You are not allowed to complete this swap.');
+    }
+    if (swap.isCompleted) return;
+
+    await ref.update({FirestoreSwaps.status: FirestoreSwaps.statusCompleted});
   }
 
   /// Stream of swap records where current user is initiator or target.
@@ -92,16 +133,19 @@ class SwapService {
         .orderBy(FirestoreSwaps.createdAt, descending: true)
         .snapshots()
         .map((snap) {
-      return snap.docs
-          .map((d) => SwapRecord.fromFirestore(d))
-          .where((s) => s.initiatorUserId == uid || s.targetUserId == uid)
-          .toList();
-    });
+          return snap.docs
+              .map((d) => SwapRecord.fromFirestore(d))
+              .where((s) => s.initiatorUserId == uid || s.targetUserId == uid)
+              .toList();
+        });
   }
 
   /// Get the other user's post (the slot we got from swap) for display.
   static Future<SwapPost?> getPostById(String postId) async {
-    final doc = await _firestore.collection(FirestorePosts.collection).doc(postId).get();
+    final doc = await _firestore
+        .collection(FirestorePosts.collection)
+        .doc(postId)
+        .get();
     if (!doc.exists || doc.data() == null) return null;
     return SwapPost.fromFirestore(doc);
   }

@@ -29,6 +29,7 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
   bool _distanceFilterEnabled = false;
   double _selectedDistanceFilter = 20;
   Timer? _radiusLoadingTimer;
+  final Set<String> _completingSwapIds = <String>{};
 
   static String _timeAgo(DateTime dateTime) {
     final diff = DateTime.now().difference(dateTime);
@@ -110,6 +111,49 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
     });
   }
 
+  Future<void> _completeSwap(SwapRecord record) async {
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Complete swap?'),
+        content: const Text(
+          'Use this only after both users have finished the real DVSA test-date change.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Get.back(result: true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Complete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() {
+      _completingSwapIds.add(record.id);
+    });
+
+    try {
+      await SwapService.completeSwap(record.id);
+      ToastUtil.success('Swap marked as completed');
+    } catch (e) {
+      ToastUtil.error(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _completingSwapIds.remove(record.id);
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -129,153 +173,7 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
                   children: [
                     _sectionTitle('My Swap'),
                     const SizedBox(height: 10),
-                    StreamBuilder<List<SwapRecord>>(
-                      stream: SwapService.streamMySwaps(),
-                      builder: (context, swapSnapshot) {
-                        if (swapSnapshot.hasError) {
-                          return Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: AppColors.error.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Text(
-                              'Error loading swaps: ${swapSnapshot.error}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          );
-                        }
-                        final swaps = swapSnapshot.data ?? [];
-                        if (swaps.isNotEmpty) {
-                          final uid = AuthService.currentUser?.uid;
-                          if (uid != null) {
-                            return _MySwapResultCard(
-                              record: swaps.first,
-                              currentUserId: uid,
-                            );
-                          }
-                        }
-                        return StreamBuilder<List<SwapPost>>(
-                          stream: PostService.streamMyPosts(),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasError) {
-                              final msg = PostService.userFriendlyPostError(
-                                snapshot.error!,
-                              );
-                              final indexUrl =
-                                  PostService.getIndexCreationUrlFromError(
-                                    snapshot.error!,
-                                  );
-                              final isBuilding =
-                                  PostService.isIndexBuildingError(
-                                    snapshot.error!,
-                                  );
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                ToastUtil.error(msg);
-                              });
-                              return Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(18),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withValues(
-                                    alpha: 0.08,
-                                  ),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: AppColors.error.withValues(
-                                      alpha: 0.3,
-                                    ),
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Error loading your post: $msg',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    if (indexUrl != null) ...[
-                                      const SizedBox(height: 14),
-                                      FilledButton.icon(
-                                        onPressed: () => launchUrl(
-                                          Uri.parse(indexUrl),
-                                          mode: LaunchMode.externalApplication,
-                                        ),
-                                        icon: const Icon(
-                                          Icons.open_in_new,
-                                          size: 18,
-                                        ),
-                                        label: Text(
-                                          isBuilding
-                                              ? 'Check status'
-                                              : 'Create index',
-                                        ),
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor:
-                                              AppColors.textOnPrimary,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 10,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              );
-                            }
-                            final myPosts = snapshot.data ?? [];
-                            final myPost = myPosts.isNotEmpty
-                                ? myPosts.first
-                                : null;
-                            if (myPost == null) {
-                              return _buildNoMyPostCard();
-                            }
-                            return _SwapCard(
-                              initials: myPost.creatorInitials,
-                              name: myPost.creatorName,
-                              joined: 'Posted ${_timeAgo(myPost.createdAt)}',
-                              location: myPost.testCentre,
-                              distance:
-                                  _currentLocation != null &&
-                                      myPost.hasTestCentreLocation
-                                  ? LocationService.formatDistanceMiles(
-                                      LocationService.distanceInMiles(
-                                        fromLatitude:
-                                            _currentLocation!.latitude,
-                                        fromLongitude:
-                                            _currentLocation!.longitude,
-                                        toLatitude: myPost.testCentreLat!,
-                                        toLongitude: myPost.testCentreLng!,
-                                      ),
-                                    )
-                                  : null,
-                              date: myPost.date,
-                              time: myPost.time,
-                              showSwapTag: false,
-                              lookingFor: myPost.lookingFor.isNotEmpty
-                                  ? myPost.lookingFor
-                                  : null,
-                              preferredArea: myPost.preferredArea.isNotEmpty
-                                  ? myPost.preferredArea
-                                  : null,
-                              showActions: false,
-                            );
-                          },
-                        );
-                      },
-                    ),
+                    _buildMySwapsSection(),
                     const SizedBox(height: 24),
                     _sectionTitle('Available for Swap'),
                     const SizedBox(height: 10),
@@ -495,6 +393,210 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMySwapsSection() {
+    return StreamBuilder<List<SwapRecord>>(
+      stream: SwapService.streamMySwaps(),
+      builder: (context, swapSnapshot) {
+        if (swapSnapshot.hasError) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              'Error loading swaps: ${swapSnapshot.error}',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          );
+        }
+
+        final swaps = swapSnapshot.data ?? [];
+        final currentUserId = AuthService.currentUser?.uid;
+        if (swaps.isNotEmpty && currentUserId != null) {
+          final inProgressSwaps = swaps
+              .where((swap) => swap.isInProgress)
+              .toList();
+
+          if (inProgressSwaps.isNotEmpty) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSwapSectionHeader(
+                  title: 'In Progress',
+                  subtitle:
+                      'Finish the DVSA change, then complete the swap here.',
+                  count: inProgressSwaps.length,
+                  color: AppColors.warning,
+                ),
+                const SizedBox(height: 10),
+                ...inProgressSwaps.map(
+                  (swap) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _MySwapRecordCard(
+                      record: swap,
+                      currentUserId: currentUserId,
+                      isCompleting: _completingSwapIds.contains(swap.id),
+                      onComplete: () => _completeSwap(swap),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+        }
+
+        return StreamBuilder<List<SwapPost>>(
+          stream: PostService.streamMyPosts(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              final msg = PostService.userFriendlyPostError(snapshot.error!);
+              final indexUrl = PostService.getIndexCreationUrlFromError(
+                snapshot.error!,
+              );
+              final isBuilding = PostService.isIndexBuildingError(
+                snapshot.error!,
+              );
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ToastUtil.error(msg);
+              });
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Error loading your post: $msg',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (indexUrl != null) ...[
+                      const SizedBox(height: 14),
+                      FilledButton.icon(
+                        onPressed: () => launchUrl(
+                          Uri.parse(indexUrl),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        label: Text(
+                          isBuilding ? 'Check status' : 'Create index',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.textOnPrimary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }
+            final myPosts = snapshot.data ?? [];
+            final myPost = myPosts.isNotEmpty ? myPosts.first : null;
+            if (myPost == null) {
+              return _buildNoMyPostCard();
+            }
+            return _SwapCard(
+              initials: myPost.creatorInitials,
+              name: myPost.creatorName,
+              joined: 'Posted ${_timeAgo(myPost.createdAt)}',
+              location: myPost.testCentre,
+              distance: _currentLocation != null && myPost.hasTestCentreLocation
+                  ? LocationService.formatDistanceMiles(
+                      LocationService.distanceInMiles(
+                        fromLatitude: _currentLocation!.latitude,
+                        fromLongitude: _currentLocation!.longitude,
+                        toLatitude: myPost.testCentreLat!,
+                        toLongitude: myPost.testCentreLng!,
+                      ),
+                    )
+                  : null,
+              date: myPost.date,
+              time: myPost.time,
+              showSwapTag: false,
+              lookingFor: myPost.lookingFor.isNotEmpty
+                  ? myPost.lookingFor
+                  : null,
+              preferredArea: myPost.preferredArea.isNotEmpty
+                  ? myPost.preferredArea
+                  : null,
+              showActions: false,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSwapSectionHeader({
+    required String title,
+    required String subtitle,
+    required int count,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -753,20 +855,30 @@ class _PostWithDistance {
   final double? distanceMiles;
 }
 
-/// Shows the result of a completed swap: "Swapped with X – your new slot: date, time at centre."
-class _MySwapResultCard extends StatelessWidget {
-  const _MySwapResultCard({required this.record, required this.currentUserId});
+class _MySwapRecordCard extends StatelessWidget {
+  const _MySwapRecordCard({
+    required this.record,
+    required this.currentUserId,
+    this.isCompleting = false,
+    this.onComplete,
+  });
 
   final SwapRecord record;
   final String currentUserId;
+  final bool isCompleting;
+  final VoidCallback? onComplete;
 
   @override
   Widget build(BuildContext context) {
     final otherPostId = record.otherPostId(currentUserId);
-    return FutureBuilder<SwapPost?>(
-      future: SwapService.getPostById(otherPostId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    final myPostId = record.myPostId(currentUserId);
+    return FutureBuilder<List<SwapPost?>>(
+      future: Future.wait([
+        SwapService.getPostById(myPostId),
+        SwapService.getPostById(otherPostId),
+      ]),
+      builder: (context, postsSnapshot) {
+        if (postsSnapshot.connectionState == ConnectionState.waiting) {
           return Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -784,8 +896,9 @@ class _MySwapResultCard extends StatelessWidget {
             ),
           );
         }
-        final post = snapshot.data;
-        if (post == null) {
+        final myPost = postsSnapshot.data?[0];
+        final otherPost = postsSnapshot.data?[1];
+        if (myPost == null && otherPost == null) {
           return Container(
             width: double.infinity,
             padding: const EdgeInsets.all(18),
@@ -795,98 +908,176 @@ class _MySwapResultCard extends StatelessWidget {
               border: Border.all(color: AppColors.border),
             ),
             child: Text(
-              'Your swap is saved. Post details could not be loaded.',
+              'This swap is saved, but the related post details could not be loaded.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
           );
         }
+
+        final isCompleted = record.isCompleted;
+        final statusColor = isCompleted ? AppColors.success : AppColors.warning;
+        final otherName = otherPost?.creatorName ?? 'another user';
+
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.background,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.success.withValues(alpha: 0.5)),
+            border: Border.all(color: statusColor.withValues(alpha: 0.45)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.swap_horiz, color: AppColors.success, size: 20),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Swapped with ${post.creatorName}',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                  Icon(Icons.swap_horiz, color: statusColor, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Swap with $otherName',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      isCompleted ? 'Completed' : 'In progress',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               Text(
-                'Your new slot:',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                isCompleted
+                    ? 'You can review the finished swap details below.'
+                    : 'Complete the DVSA change first, then mark this swap as completed.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
               ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(
-                    Icons.location_on_outlined,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      post.testCentre,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
+              if (myPost != null) ...[
+                const SizedBox(height: 14),
+                _SwapSlotSummary(
+                  title: 'Your original slot',
+                  icon: Icons.person_outline_rounded,
+                  color: AppColors.primary,
+                  post: myPost,
+                ),
+              ],
+              if (otherPost != null) ...[
+                const SizedBox(height: 12),
+                _SwapSlotSummary(
+                  title: isCompleted ? 'Swapped slot' : 'Requested slot',
+                  icon: Icons.flag_outlined,
+                  color: statusColor,
+                  post: otherPost,
+                ),
+              ],
+              if (!isCompleted) ...[
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: isCompleting ? null : onComplete,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    post.date,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textPrimary,
+                    child: Text(
+                      isCompleting ? 'Completing...' : 'Complete swap',
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Icon(
-                    Icons.access_time_rounded,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    post.time,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _SwapSlotSummary extends StatelessWidget {
+  const _SwapSlotSummary({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.post,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+  final SwapPost post;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            post.testCentre,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${post.date} • ${post.time}',
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
