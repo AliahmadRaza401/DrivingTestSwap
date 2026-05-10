@@ -3,6 +3,7 @@ import '../pages/splash/splash_page.dart';
 import '../pages/onboarding/onboarding_page.dart';
 import '../pages/auth/signup_page.dart';
 import '../pages/auth/login_page.dart';
+import '../pages/auth/forgot_password_page.dart';
 import '../pages/terms/terms_page.dart';
 import '../pages/choose_plan/choose_plan_page.dart';
 import '../pages/choose_plan/controllers/choose_plan_controller.dart';
@@ -45,6 +46,11 @@ class AppPages {
     GetPage<LoginPage>(
       name: AppRoutes.login,
       page: () => const LoginPage(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage<ForgotPasswordPage>(
+      name: AppRoutes.forgotPassword,
+      page: () => const ForgotPasswordPage(),
       transition: Transition.rightToLeft,
     ),
     GetPage<TermsPage>(

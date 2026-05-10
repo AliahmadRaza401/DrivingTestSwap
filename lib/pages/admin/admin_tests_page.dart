@@ -374,6 +374,14 @@ class _SwapCard extends StatelessWidget {
         : normalizedStatus == FirestoreSwaps.statusCompleted
         ? 'Completed'
         : normalizedStatus.replaceAll('_', ' ');
+    final initiatorEmail = item.initiatorEmail;
+    final initiatorLabel = initiatorEmail == null || initiatorEmail.isEmpty
+        ? item.swap.initiatorUserId
+        : initiatorEmail;
+    final targetEmail = item.targetEmail;
+    final targetLabel = targetEmail == null || targetEmail.isEmpty
+        ? item.swap.targetUserId
+        : targetEmail;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -409,7 +417,7 @@ class _SwapCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Initiator: ${item.initiatorEmail.isEmpty ? item.swap.initiatorUserId : item.initiatorEmail}',
+                  'Initiator: $initiatorLabel',
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
@@ -417,7 +425,7 @@ class _SwapCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Target: ${item.targetEmail.isEmpty ? item.swap.targetUserId : item.targetEmail}',
+                  'Target: $targetLabel',
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,

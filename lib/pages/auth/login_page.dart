@@ -76,6 +76,13 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  void _onForgotPassword() {
+    Get.toNamed(
+      AppRoutes.forgotPassword,
+      arguments: _emailController.text.trim(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -139,7 +146,30 @@ class _LoginPageState extends State<LoginPage> {
                   validator: (v) =>
                       (v == null || v.isEmpty) ? 'Enter password' : null,
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _loading ? null : _onForgotPassword,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 6,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Forgot password?',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
                 SizedBox(
                   height: 54,
                   child: FilledButton(

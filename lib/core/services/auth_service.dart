@@ -125,7 +125,7 @@ class AuthService {
     String? fullName,
     String? dateOfBirth,
   }) async {
-    var lastException;
+    Object? lastException;
     for (var attempt = 1; attempt <= _firestoreRetryCount; attempt++) {
       try {
         await _firestore.collection(FirestoreUsers.collection).doc(uid).set({
@@ -137,13 +137,21 @@ class AuthService {
         return;
       } on FirebaseException catch (e) {
         lastException = e;
-        if (!_isConnectionError(e.message) || attempt == _firestoreRetryCount) rethrow;
-        if (!kReleaseMode) debugPrint('[SignUp] Firestore attempt $attempt failed, retrying: ${e.message}');
+        if (!_isConnectionError(e.message) || attempt == _firestoreRetryCount) {
+          rethrow;
+        }
+        if (!kReleaseMode) {
+          debugPrint(
+            '[SignUp] Firestore attempt $attempt failed, retrying: ${e.message}',
+          );
+        }
         await Future.delayed(_firestoreRetryDelay);
       } on TimeoutException catch (e) {
         lastException = e;
         if (attempt == _firestoreRetryCount) rethrow;
-        if (!kReleaseMode) debugPrint('[SignUp] Firestore attempt $attempt timeout, retrying');
+        if (!kReleaseMode) {
+          debugPrint('[SignUp] Firestore attempt $attempt timeout, retrying');
+        }
         await Future.delayed(_firestoreRetryDelay);
       }
     }
@@ -167,18 +175,47 @@ class AuthService {
       return _signInErrorMessage(e);
     } on FirebaseException catch (e, st) {
       _logFirebaseError('SignIn Firestore', e, st);
-      return _isConnectionError(e.message) ? _connectionErrorMessage : (e.message ?? 'Something went wrong. Please try again.');
+      return _isConnectionError(e.message)
+          ? _connectionErrorMessage
+          : (e.message ?? 'Something went wrong. Please try again.');
     } on TimeoutException catch (e, st) {
       _logError('SignIn Timeout', e, st);
       return _connectionErrorMessage;
     } catch (e, st) {
       _logError('SignIn', e, st);
-      return _isConnectionError(e.toString()) ? _connectionErrorMessage : 'Something went wrong. Please try again.';
+      return _isConnectionError(e.toString())
+          ? _connectionErrorMessage
+          : 'Something went wrong. Please try again.';
     }
   }
 
   static Future<void> signOut() async {
     await _auth.signOut();
+  }
+
+  /// Sends a password reset email for users who cannot sign in.
+  /// Returns null on success, or a user-friendly error message on failure.
+  static Future<String?> sendPasswordResetEmail({required String email}) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      return null;
+    } on FirebaseAuthException catch (e, st) {
+      _logFirebaseAuthError('sendPasswordResetEmail', e, st);
+      return _passwordResetErrorMessage(e);
+    } on FirebaseException catch (e, st) {
+      _logFirebaseError('sendPasswordResetEmail', e, st);
+      return _isConnectionError(e.message)
+          ? _connectionErrorMessage
+          : (e.message ?? 'Failed to send password reset email.');
+    } on TimeoutException catch (e, st) {
+      _logError('sendPasswordResetEmail Timeout', e, st);
+      return _connectionErrorMessage;
+    } catch (e, st) {
+      _logError('sendPasswordResetEmail', e, st);
+      return _isConnectionError(e.toString())
+          ? _connectionErrorMessage
+          : 'Failed to send password reset email. Please try again.';
+    }
   }
 
   /// Returns true if the current user has an active subscription (has completed at least one plan purchase).
@@ -216,9 +253,14 @@ class AuthService {
       FirestoreUsers.subscribedAt: FieldValue.serverTimestamp(),
     };
     if (expiresAt != null) {
-      data[FirestoreUsers.subscriptionExpiresAt] = Timestamp.fromDate(expiresAt);
+      data[FirestoreUsers.subscriptionExpiresAt] = Timestamp.fromDate(
+        expiresAt,
+      );
     }
-    await _firestore.collection(FirestoreUsers.collection).doc(user.uid).set(data, SetOptions(merge: true));
+    await _firestore
+        .collection(FirestoreUsers.collection)
+        .doc(user.uid)
+        .set(data, SetOptions(merge: true));
   }
 
   /// Fetches current subscription status (plan name and expiry) for display. Returns null if no subscription.
@@ -250,20 +292,33 @@ class AuthService {
 
   /// Updates the current user's profile in Firestore (fullName, dateOfBirth). Also updates local prefs.
   /// Returns null on success, or a user-friendly error message.
-  static Future<String?> updateProfile({String? fullName, String? dateOfBirth}) async {
+  static Future<String?> updateProfile({
+    String? fullName,
+    String? dateOfBirth,
+  }) async {
     final user = _auth.currentUser;
     if (user == null) return 'Not signed in.';
     try {
       final data = <String, dynamic>{};
       if (fullName != null) data[FirestoreUsers.fullName] = fullName.trim();
-      if (dateOfBirth != null) data[FirestoreUsers.dateOfBirth] = dateOfBirth.trim();
+      if (dateOfBirth != null) {
+        data[FirestoreUsers.dateOfBirth] = dateOfBirth.trim();
+      }
       if (data.isEmpty) return null;
-      await _firestore.collection(FirestoreUsers.collection).doc(user.uid).set(data, SetOptions(merge: true));
-      await UserPreferencesService.updateProfileData(fullName: fullName?.trim(), dateOfBirth: dateOfBirth?.trim());
+      await _firestore
+          .collection(FirestoreUsers.collection)
+          .doc(user.uid)
+          .set(data, SetOptions(merge: true));
+      await UserPreferencesService.updateProfileData(
+        fullName: fullName?.trim(),
+        dateOfBirth: dateOfBirth?.trim(),
+      );
       return null;
     } on FirebaseException catch (e, st) {
       _logFirebaseError('updateProfile', e, st);
-      return _isConnectionError(e.message) ? _connectionErrorMessage : (e.message ?? 'Failed to update profile.');
+      return _isConnectionError(e.message)
+          ? _connectionErrorMessage
+          : (e.message ?? 'Failed to update profile.');
     } catch (e, st) {
       _logError('updateProfile', e, st);
       return 'Failed to update profile. Please try again.';
@@ -278,9 +333,14 @@ class AuthService {
   }) async {
     final user = _auth.currentUser;
     if (user == null) return 'Not signed in.';
-    if (user.email == null || user.email!.isEmpty) return 'Email not set. Cannot change password.';
+    if (user.email == null || user.email!.isEmpty) {
+      return 'Email not set. Cannot change password.';
+    }
     try {
-      final credential = EmailAuthProvider.credential(email: user.email!, password: currentPassword);
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
       await user.reauthenticateWithCredential(credential);
       await user.updatePassword(newPassword);
       return null;
@@ -289,7 +349,9 @@ class AuthService {
       if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
         return 'Current password is incorrect.';
       }
-      if (e.code == 'weak-password') return 'New password is too weak. Use at least 6 characters.';
+      if (e.code == 'weak-password') {
+        return 'New password is too weak. Use at least 6 characters.';
+      }
       return e.message ?? 'Failed to change password.';
     } catch (e, st) {
       _logError('updatePassword', e, st);
@@ -323,15 +385,27 @@ class AuthService {
   static const String _connectionErrorMessage =
       'Unable to connect. Please check your internet connection and try again.';
 
-  static void _logFirebaseAuthError(String context, FirebaseAuthException e, StackTrace st) {
+  static void _logFirebaseAuthError(
+    String context,
+    FirebaseAuthException e,
+    StackTrace st,
+  ) {
     if (kReleaseMode) return;
-    debugPrint('[$context] FirebaseAuthException: code=${e.code}, message=${e.message}, plugin=${e.plugin}');
+    debugPrint(
+      '[$context] FirebaseAuthException: code=${e.code}, message=${e.message}, plugin=${e.plugin}',
+    );
     debugPrint('[$context] StackTrace: $st');
   }
 
-  static void _logFirebaseError(String context, FirebaseException e, StackTrace st) {
+  static void _logFirebaseError(
+    String context,
+    FirebaseException e,
+    StackTrace st,
+  ) {
     if (kReleaseMode) return;
-    debugPrint('[$context] FirebaseException: code=${e.code}, message=${e.message}, plugin=${e.plugin}');
+    debugPrint(
+      '[$context] FirebaseException: code=${e.code}, message=${e.message}, plugin=${e.plugin}',
+    );
     debugPrint('[$context] StackTrace: $st');
   }
 
@@ -408,6 +482,27 @@ class AuthService {
         return e.message?.isNotEmpty == true
             ? e.message!
             : 'Credentials not correct. Please check your email and password.';
+    }
+  }
+
+  /// User-friendly messages for password reset emails.
+  static String _passwordResetErrorMessage(FirebaseAuthException e) {
+    if (_isConnectionError(e.message)) return _connectionErrorMessage;
+    switch (e.code) {
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'user-not-found':
+        return 'No account found for that email address.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'No internet connection. Please check your network and try again.';
+      case 'operation-not-allowed':
+        return 'Password reset is not available. Please contact support.';
+      default:
+        return e.message?.isNotEmpty == true
+            ? e.message!
+            : 'Failed to send password reset email. Please try again.';
     }
   }
 }
