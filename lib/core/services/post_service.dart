@@ -11,7 +11,10 @@ abstract class FirestorePosts {
   static const String testCentre = 'testCentre';
   static const String testCentreLat = 'testCentreLat';
   static const String testCentreLng = 'testCentreLng';
-  static const String date = 'date';
+  // New date range fields (dateFrom/dateTo). Older posts may only have 'date'.
+  static const String dateFrom = 'dateFrom';
+  static const String dateTo = 'dateTo';
+  static const String date = 'date'; // legacy fallback
   static const String time = 'time';
   static const String lookingFor = 'lookingFor';
   static const String preferredArea = 'preferredArea';
@@ -30,7 +33,8 @@ class SwapPost {
     required this.testCentre,
     this.testCentreLat,
     this.testCentreLng,
-    required this.date,
+    required this.dateFrom,
+    this.dateTo = '',
     required this.time,
     required this.lookingFor,
     this.preferredArea = '',
@@ -46,7 +50,8 @@ class SwapPost {
   final String testCentre;
   final double? testCentreLat;
   final double? testCentreLng;
-  final String date;
+  final String dateFrom;
+  final String dateTo;
   final String time;
   final String lookingFor;
   final String preferredArea;
@@ -56,18 +61,29 @@ class SwapPost {
   final String creatorName;
   final String creatorInitials;
 
+  /// Returns the display date: a range if dateTo differs from dateFrom, otherwise just dateFrom.
+  String get date {
+    if (dateTo.isNotEmpty && dateTo != dateFrom) return '$dateFrom – $dateTo';
+    return dateFrom;
+  }
+
   bool get hasTestCentreLocation =>
       testCentreLat != null && testCentreLng != null;
 
   factory SwapPost.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
+    final legacyDate = data[FirestorePosts.date] as String? ?? '';
+    final dateFrom = data[FirestorePosts.dateFrom] as String? ??
+        legacyDate;
+    final dateTo = data[FirestorePosts.dateTo] as String? ?? '';
     return SwapPost(
       id: doc.id,
       userId: data[FirestorePosts.userId] as String? ?? '',
       testCentre: data[FirestorePosts.testCentre] as String? ?? '',
       testCentreLat: (data[FirestorePosts.testCentreLat] as num?)?.toDouble(),
       testCentreLng: (data[FirestorePosts.testCentreLng] as num?)?.toDouble(),
-      date: data[FirestorePosts.date] as String? ?? '',
+      dateFrom: dateFrom,
+      dateTo: dateTo,
       time: data[FirestorePosts.time] as String? ?? '',
       lookingFor: data[FirestorePosts.lookingFor] as String? ?? '',
       preferredArea: data[FirestorePosts.preferredArea] as String? ?? '',
@@ -86,7 +102,8 @@ class SwapPost {
     FirestorePosts.testCentre: testCentre,
     FirestorePosts.testCentreLat: testCentreLat,
     FirestorePosts.testCentreLng: testCentreLng,
-    FirestorePosts.date: date,
+    FirestorePosts.dateFrom: dateFrom,
+    FirestorePosts.dateTo: dateTo,
     FirestorePosts.time: time,
     FirestorePosts.lookingFor: lookingFor,
     FirestorePosts.preferredArea: preferredArea,
@@ -151,7 +168,8 @@ class PostService {
     required String testCentre,
     required double testCentreLat,
     required double testCentreLng,
-    required String date,
+    required String dateFrom,
+    String dateTo = '',
     required String time,
     required String lookingFor,
     String preferredArea = '',
@@ -172,7 +190,8 @@ class PostService {
         FirestorePosts.testCentre: testCentre,
         FirestorePosts.testCentreLat: testCentreLat,
         FirestorePosts.testCentreLng: testCentreLng,
-        FirestorePosts.date: date,
+        FirestorePosts.dateFrom: dateFrom,
+        FirestorePosts.dateTo: dateTo,
         FirestorePosts.time: time,
         FirestorePosts.lookingFor: lookingFor,
         FirestorePosts.preferredArea: preferredArea,
@@ -240,7 +259,8 @@ class PostService {
     required String testCentre,
     required double testCentreLat,
     required double testCentreLng,
-    required String date,
+    required String dateFrom,
+    String dateTo = '',
     required String time,
     required String lookingFor,
     String preferredArea = '',
@@ -266,7 +286,8 @@ class PostService {
         FirestorePosts.testCentre: testCentre,
         FirestorePosts.testCentreLat: testCentreLat,
         FirestorePosts.testCentreLng: testCentreLng,
-        FirestorePosts.date: date,
+        FirestorePosts.dateFrom: dateFrom,
+        FirestorePosts.dateTo: dateTo,
         FirestorePosts.time: time,
         FirestorePosts.lookingFor: lookingFor,
         FirestorePosts.preferredArea: preferredArea,

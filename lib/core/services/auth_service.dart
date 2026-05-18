@@ -11,7 +11,9 @@ abstract class FirestoreUsers {
   static const String collection = 'users';
   static const String email = 'email';
   static const String fullName = 'fullName';
+  static const String username = 'username';
   static const String dateOfBirth = 'dateOfBirth';
+  static const String gdprConsent = 'gdprConsent';
   static const String createdAt = 'createdAt';
   // Subscription (set after successful payment)
   static const String subscriptionPlanId = 'subscriptionPlanId';
@@ -55,7 +57,9 @@ class AuthService {
     required String email,
     required String password,
     String? fullName,
+    String? username,
     String? dateOfBirth,
+    bool gdprConsent = false,
   }) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -69,7 +73,9 @@ class AuthService {
             uid: user.uid,
             email: email.trim(),
             fullName: fullName?.trim(),
+            username: username?.trim(),
             dateOfBirth: dateOfBirth?.trim(),
+            gdprConsent: gdprConsent,
           );
         } on FirebaseException catch (e, st) {
           _logFirebaseError('SignUp Firestore', e, st);
@@ -123,7 +129,9 @@ class AuthService {
     required String uid,
     required String email,
     String? fullName,
+    String? username,
     String? dateOfBirth,
+    bool gdprConsent = false,
   }) async {
     Object? lastException;
     for (var attempt = 1; attempt <= _firestoreRetryCount; attempt++) {
@@ -131,7 +139,9 @@ class AuthService {
         await _firestore.collection(FirestoreUsers.collection).doc(uid).set({
           FirestoreUsers.email: email,
           FirestoreUsers.fullName: fullName ?? '',
+          FirestoreUsers.username: username ?? '',
           FirestoreUsers.dateOfBirth: dateOfBirth ?? '',
+          FirestoreUsers.gdprConsent: gdprConsent,
           FirestoreUsers.createdAt: FieldValue.serverTimestamp(),
         });
         return;
@@ -375,6 +385,7 @@ class AuthService {
         'uid': user.uid,
         'email': (data[FirestoreUsers.email] as String?) ?? user.email ?? '',
         'fullName': (data[FirestoreUsers.fullName] as String?) ?? '',
+        'username': (data[FirestoreUsers.username] as String?) ?? '',
         'dateOfBirth': (data[FirestoreUsers.dateOfBirth] as String?) ?? '',
       };
     } catch (_) {

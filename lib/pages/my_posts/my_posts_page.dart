@@ -445,6 +445,35 @@ class _PostCard extends StatelessWidget {
               ),
             ),
           ],
+          if (post.notes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.notes_outlined, size: 15, color: AppColors.textSecondary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      post.notes,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textPrimary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
