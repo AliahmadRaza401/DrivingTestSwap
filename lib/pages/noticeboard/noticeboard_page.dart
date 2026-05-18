@@ -335,10 +335,15 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
                                   date: item.post.date,
                                   time: item.post.time,
                                   showSwapTag: true,
-                                  lookingFor: item.post.lookingFor,
+                                  lookingFor: item.post.lookingFor.isNotEmpty
+                                      ? item.post.lookingFor
+                                      : null,
                                   preferredArea:
                                       item.post.preferredArea.isNotEmpty
                                       ? item.post.preferredArea
+                                      : null,
+                                  notes: item.post.notes.isNotEmpty
+                                      ? item.post.notes
                                       : null,
                                   showActions: true,
                                   postForSwap: item.post,
@@ -542,6 +547,7 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
               preferredArea: myPost.preferredArea.isNotEmpty
                   ? myPost.preferredArea
                   : null,
+              notes: myPost.notes.isNotEmpty ? myPost.notes : null,
               showActions: false,
             );
           },
@@ -1095,6 +1101,7 @@ class _SwapCard extends StatelessWidget {
     required this.lookingFor,
     required this.preferredArea,
     required this.showActions,
+    this.notes,
     this.postForSwap,
   });
 
@@ -1108,6 +1115,7 @@ class _SwapCard extends StatelessWidget {
   final bool showSwapTag;
   final String? lookingFor;
   final String? preferredArea;
+  final String? notes;
   final bool showActions;
 
   /// When set, the Swap button navigates to the swap page with this post.
@@ -1289,6 +1297,35 @@ class _SwapCard extends StatelessWidget {
               ),
             ),
           ],
+          if (notes != null && notes!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.notes_outlined, size: 15, color: AppColors.textSecondary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      notes!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textPrimary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (showActions) ...[
             const SizedBox(height: 16),
             Row(
@@ -1298,6 +1335,13 @@ class _SwapCard extends StatelessWidget {
                     onPressed: postForSwap == null
                         ? null
                         : () async {
+                            final hasSubscription =
+                                await AuthService.hasActiveSubscription();
+                            if (!hasSubscription) {
+                              ToastUtil.info('Subscribe to message others');
+                              Get.toNamed(AppRoutes.choosePlan);
+                              return;
+                            }
                             try {
                               final cid =
                                   await ChatService.getOrCreateConversation(

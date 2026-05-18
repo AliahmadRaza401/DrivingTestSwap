@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/google_places_service.dart';
 import '../../core/services/post_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/toast_util.dart';
@@ -24,7 +23,8 @@ class PostAvailabilityPage extends StatefulWidget {
 class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
   final _formKey = GlobalKey<FormState>();
   final _testCentreController = TextEditingController();
-  final _dateController = TextEditingController();
+  final _dateFromController = TextEditingController();
+  final _dateToController = TextEditingController();
   final _timeController = TextEditingController();
   final _lookingForController = TextEditingController();
   final _preferredAreaController = TextEditingController();
@@ -41,7 +41,8 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
       _testCentreController.text = post.testCentre;
       _selectedTestCentreLat = post.testCentreLat;
       _selectedTestCentreLng = post.testCentreLng;
-      _dateController.text = post.date;
+      _dateFromController.text = post.dateFrom;
+      _dateToController.text = post.dateTo;
       _timeController.text = post.time;
       _lookingForController.text = post.lookingFor;
       _preferredAreaController.text = post.preferredArea;
@@ -52,7 +53,8 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
   @override
   void dispose() {
     _testCentreController.dispose();
-    _dateController.dispose();
+    _dateFromController.dispose();
+    _dateToController.dispose();
     _timeController.dispose();
     _lookingForController.dispose();
     _preferredAreaController.dispose();
@@ -60,27 +62,17 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null && mounted) {
-      _dateController.text =
-          '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
-    }
+  String _formatUkDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  DateTime? _tryParseUsDate(String value) {
+  DateTime? _tryParseUkDate(String value) {
     final parts = value.trim().split('/');
     if (parts.length != 3) return null;
-    final month = int.tryParse(parts[0]);
-    final day = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
     final year = int.tryParse(parts[2]);
-    if (month == null || day == null || year == null) return null;
-
+    if (day == null || month == null || year == null) return null;
     try {
       return DateTime(year, month, day);
     } catch (_) {
@@ -88,18 +80,51 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     }
   }
 
-  Future<void> _pickLookingForDate() async {
-    final initialDate =
-        _tryParseUsDate(_lookingForController.text) ?? DateTime.now();
+  Future<void> _pickDateFrom() async {
+    final initial = _tryParseUkDate(_dateFromController.text) ?? DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: initialDate,
+      initialDate: initial,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null && mounted) {
-      _lookingForController.text =
-          '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
+      setState(() {
+        _dateFromController.text = _formatUkDate(picked);
+        // Clear dateTo if it is before the new dateFrom
+        final currentTo = _tryParseUkDate(_dateToController.text);
+        if (currentTo != null && currentTo.isBefore(picked)) {
+          _dateToController.clear();
+        }
+      });
+    }
+  }
+
+  Future<void> _pickDateTo() async {
+    final from = _tryParseUkDate(_dateFromController.text) ?? DateTime.now();
+    final initial = _tryParseUkDate(_dateToController.text) ?? from;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial.isBefore(from) ? from : initial,
+      firstDate: from,
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null && mounted) {
+      _dateToController.text = _formatUkDate(picked);
+    }
+  }
+
+  Future<void> _pickLookingForDate() async {
+    final initial =
+        _tryParseUkDate(_lookingForController.text) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null && mounted) {
+      _lookingForController.text = _formatUkDate(picked);
     }
   }
 
@@ -117,7 +142,7 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
   }
 
   Future<void> _pickTestCentre() async {
-    final selected = await showModalBottomSheet<PlaceDetails>(
+    final selected = await showModalBottomSheet<SelectedTestCentre>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -129,14 +154,14 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     if (selected == null || !mounted) return;
 
     setState(() {
-      _testCentreController.text = selected.name;
+      _testCentreController.text = selected.displayName;
       _selectedTestCentreLat = selected.latitude;
       _selectedTestCentreLng = selected.longitude;
     });
   }
 
-  static String _initialsFromName(String fullName) {
-    final parts = fullName
+  static String _initialsFromName(String name) {
+    final parts = name
         .trim()
         .split(RegExp(r'\s+'))
         .where((s) => s.isNotEmpty)
@@ -159,7 +184,8 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
     final testCentre = _testCentreController.text.trim();
-    final date = _dateController.text.trim();
+    final dateFrom = _dateFromController.text.trim();
+    final dateTo = _dateToController.text.trim();
     final time = _timeController.text.trim();
     final lookingFor = _lookingForController.text.trim();
     final preferredArea = _preferredAreaController.text.trim();
@@ -180,7 +206,8 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
           testCentre: testCentre,
           testCentreLat: testCentreLat,
           testCentreLng: testCentreLng,
-          date: date,
+          dateFrom: dateFrom,
+          dateTo: dateTo,
           time: time,
           lookingFor: lookingFor,
           preferredArea: preferredArea,
@@ -194,21 +221,25 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
       }
 
       final profile = await AuthService.getCurrentUserProfile();
-      final creatorName = profile?['fullName']?.isNotEmpty == true
+      // Use username publicly; fall back to fullName then 'User'
+      final username = profile?['username']?.isNotEmpty == true
+          ? profile!['username']!
+          : profile?['fullName']?.isNotEmpty == true
           ? profile!['fullName']!
           : 'User';
-      final creatorInitials = _initialsFromName(creatorName);
+      final creatorInitials = _initialsFromName(username);
 
       await PostService.createPost(
         testCentre: testCentre,
         testCentreLat: testCentreLat,
         testCentreLng: testCentreLng,
-        date: date,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
         time: time,
         lookingFor: lookingFor,
         preferredArea: preferredArea,
         notes: notes,
-        creatorName: creatorName,
+        creatorName: username,
         creatorInitials: creatorInitials,
       );
       if (!mounted) return;
@@ -303,66 +334,67 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                 ),
               ],
               const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel('Date'),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          controller: _dateController,
-                          readOnly: true,
-                          onTap: _pickDate,
-                          decoration: _inputDecoration(
-                            hint: 'mm/dd/yyyy',
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                Icons.calendar_today,
-                                color: AppColors.textSecondary,
-                                size: 22,
-                              ),
-                              onPressed: _pickDate,
-                            ),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Select date'
-                              : null,
-                        ),
-                      ],
+              _buildLabel('Date From'),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _dateFromController,
+                readOnly: true,
+                onTap: _pickDateFrom,
+                decoration: _inputDecoration(
+                  hint: 'dd/mm/yyyy',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      Icons.calendar_today,
+                      color: AppColors.textSecondary,
+                      size: 22,
                     ),
+                    onPressed: _pickDateFrom,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel('Time'),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          controller: _timeController,
-                          readOnly: true,
-                          onTap: _pickTime,
-                          decoration: _inputDecoration(
-                            hint: '--:-- --',
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                Icons.access_time_rounded,
-                                color: AppColors.textSecondary,
-                                size: 22,
-                              ),
-                              onPressed: _pickTime,
-                            ),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Select time'
-                              : null,
-                        ),
-                      ],
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Select start date'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              _buildLabel('Date To'),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _dateToController,
+                readOnly: true,
+                onTap: _pickDateTo,
+                decoration: _inputDecoration(
+                  hint: 'dd/mm/yyyy (optional)',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      Icons.calendar_today_outlined,
+                      color: AppColors.textSecondary,
+                      size: 22,
                     ),
+                    onPressed: _pickDateTo,
                   ),
-                ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildLabel('Time'),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _timeController,
+                readOnly: true,
+                onTap: _pickTime,
+                decoration: _inputDecoration(
+                  hint: '--:-- --',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      Icons.access_time_rounded,
+                      color: AppColors.textSecondary,
+                      size: 22,
+                    ),
+                    onPressed: _pickTime,
+                  ),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Select time'
+                    : null,
               ),
               const SizedBox(height: 20),
               _buildLabel('What are you looking for?'),
@@ -410,7 +442,7 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                 maxLines: 4,
                 decoration: _inputDecoration(
                   hint:
-                      'e.g. Need a manual car, willing to travel to Coventry..',
+                      'e.g. I have Airdrie but would prefer Grangemouth.',
                 ),
               ),
               const SizedBox(height: 32),
@@ -466,7 +498,7 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
       ),
       child: Text(
-        "Tip: Be specific about what you're looking for to find match faster",
+        "Tip: Be specific about what you're looking for to find a match faster",
         style: TextStyle(
           fontSize: 14,
           height: 1.4,

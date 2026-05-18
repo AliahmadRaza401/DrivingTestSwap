@@ -1,9 +1,27 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
-import '../../../core/services/google_places_service.dart';
+import '../../../core/constants/uk_test_centres.dart';
 import '../../../core/theme/app_colors.dart';
+
+/// The result returned when a test centre is picked.
+class SelectedTestCentre {
+  const SelectedTestCentre({
+    required this.name,
+    required this.postcode,
+    required this.region,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final String name;
+  final String postcode;
+  final String region;
+  final double latitude;
+  final double longitude;
+
+  /// Full display string shown on the form field.
+  String get displayName => '$name ($postcode)';
+}
 
 class TestCentrePickerSheet extends StatefulWidget {
   const TestCentrePickerSheet({super.key, this.initialQuery = ''});
@@ -17,10 +35,8 @@ class TestCentrePickerSheet extends StatefulWidget {
 class _TestCentrePickerSheetState extends State<TestCentrePickerSheet> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  Timer? _debounce;
-  List<PlaceSuggestion> _results = const [];
-  bool _loading = false;
-  String? _error;
+  List<UkTestCentre> _results = UkTestCentres.all;
+  String? _selectedRegion;
 
   @override
   void initState() {
@@ -29,90 +45,52 @@ class _TestCentrePickerSheetState extends State<TestCentrePickerSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _focusNode.requestFocus();
-      if (_searchController.text.trim().length >= 2) {
-        _runSearch(_searchController.text);
-      }
     });
+    _filter();
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _searchController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  void _onQueryChanged(String value) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      _runSearch(value);
+  void _filter() {
+    final query = _searchController.text.trim();
+    setState(() {
+      var list = query.isEmpty ? UkTestCentres.all : UkTestCentres.search(query);
+      if (_selectedRegion != null) {
+        list = list.where((c) => c.region == _selectedRegion).toList();
+      }
+      _results = list;
     });
   }
 
-  Future<void> _runSearch(String value) async {
-    final query = value.trim();
-    if (query.length < 2) {
-      if (!mounted) return;
-      setState(() {
-        _results = const [];
-        _loading = false;
-        _error = null;
-      });
-      return;
-    }
+  void _onQueryChanged(String _) => _filter();
 
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final results = await GooglePlacesService.autocomplete(query);
-      if (!mounted) return;
-      setState(() {
-        _results = results;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _results = const [];
-        _loading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
-      });
-    }
-  }
-
-  Future<void> _selectSuggestion(PlaceSuggestion suggestion) async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final details = await GooglePlacesService.getPlaceDetails(
-        suggestion.placeId,
-      );
-      if (!mounted) return;
-      Navigator.of(context).pop(details);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
-      });
-    }
+  void _selectCentre(UkTestCentre centre) {
+    Navigator.of(context).pop(
+      SelectedTestCentre(
+        name: centre.name,
+        postcode: centre.postcode,
+        region: centre.region,
+        latitude: centre.latitude,
+        longitude: centre.longitude,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final regions = UkTestCentres.regions;
+
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(20, 16, 20, bottomInset + 20),
         child: SizedBox(
-          height: 520,
+          height: 560,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -136,17 +114,20 @@ class _TestCentrePickerSheetState extends State<TestCentrePickerSheet> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Search and select the official test centre so we can save its coordinates.',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              Text(
+                '${UkTestCentres.all.length} official DVSA test centres — search by name, postcode or region.',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextField(
                 controller: _searchController,
                 focusNode: _focusNode,
                 onChanged: _onQueryChanged,
                 decoration: InputDecoration(
-                  hintText: 'Search driving test centres',
+                  hintText: 'Search name, postcode or region…',
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
                   fillColor: Colors.white,
@@ -165,84 +146,143 @@ class _TestCentrePickerSheetState extends State<TestCentrePickerSheet> {
                       width: 1.5,
                     ),
                   ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            _filter();
+                          },
+                        )
+                      : null,
                 ),
               ),
-              const SizedBox(height: 16),
-              if (_loading)
-                const Expanded(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_error != null)
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppColors.error,
-                        fontSize: 13,
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 36,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _RegionChip(
+                      label: 'All',
+                      selected: _selectedRegion == null,
+                      onTap: () {
+                        setState(() => _selectedRegion = null);
+                        _filter();
+                      },
+                    ),
+                    ...regions.map(
+                      (r) => _RegionChip(
+                        label: r,
+                        selected: _selectedRegion == r,
+                        onTap: () {
+                          setState(() => _selectedRegion =
+                              _selectedRegion == r ? null : r);
+                          _filter();
+                        },
                       ),
                     ),
-                  ),
-                )
-              else if (_searchController.text.trim().length < 2)
-                const Expanded(
-                  child: Center(
-                    child: Text(
-                      'Type at least 2 characters to search.',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                )
-              else if (_results.isEmpty)
-                const Expanded(
-                  child: Center(
-                    child: Text(
-                      'No matching test centres found.',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: _results.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final suggestion = _results[index];
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(
-                          Icons.location_on_outlined,
-                          color: AppColors.primary,
-                        ),
-                        title: Text(
-                          suggestion.primaryText,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        subtitle: suggestion.secondaryText.isEmpty
-                            ? null
-                            : Text(
-                                suggestion.secondaryText,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                        onTap: () => _selectSuggestion(suggestion),
-                      );
-                    },
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '${_results.length} result${_results.length == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
                   ),
                 ),
+              ),
+              Expanded(
+                child: _results.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No matching test centres found.',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: _results.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final centre = _results[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(
+                              Icons.location_on_outlined,
+                              color: AppColors.primary,
+                            ),
+                            title: Text(
+                              centre.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${centre.region} · ${centre.postcode}',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                            onTap: () => _selectCentre(centre),
+                          );
+                        },
+                      ),
+              ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RegionChip extends StatelessWidget {
+  const _RegionChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primary
+                : AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primary
+                  : AppColors.primary.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : AppColors.primary,
+            ),
           ),
         ),
       ),

@@ -15,6 +15,7 @@ class SignupPage extends StatefulWidget {
 class _SignupPageState extends State<SignupPage> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _dobController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -22,10 +23,13 @@ class _SignupPageState extends State<SignupPage> {
   bool _loading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _gdprConsent = false;
+  bool _gdprError = false;
 
   @override
   void dispose() {
     _fullNameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _dobController.dispose();
     _passwordController.dispose();
@@ -42,18 +46,25 @@ class _SignupPageState extends State<SignupPage> {
     );
     if (picked != null) {
       _dobController.text =
-          '${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}';
+          '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
     }
   }
 
   Future<void> _onContinue() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final formValid = _formKey.currentState?.validate() ?? false;
+    if (!_gdprConsent) {
+      setState(() => _gdprError = true);
+    }
+    if (!formValid || !_gdprConsent) return;
+
     setState(() => _loading = true);
     final error = await AuthService.signUp(
       email: _emailController.text,
       password: _passwordController.text,
       fullName: _fullNameController.text,
+      username: _usernameController.text,
       dateOfBirth: _dobController.text,
+      gdprConsent: true,
     );
     if (!mounted) return;
     setState(() => _loading = false);
@@ -101,8 +112,25 @@ class _SignupPageState extends State<SignupPage> {
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _fullNameController,
-                  decoration: _inputDecoration(hint: 'As on your license'),
+                  decoration: _inputDecoration(hint: 'As on your licence'),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter your full name' : null,
+                ),
+                const SizedBox(height: 20),
+                _buildLabel('Username'),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _usernameController,
+                  decoration: _inputDecoration(hint: 'e.g. driver_alex'),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Choose a username';
+                    if (v.trim().length < 3) return 'Username must be at least 3 characters';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'This is what others will see publicly — your full name stays private.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 20),
                 _buildLabel('Email Address'),
@@ -125,7 +153,7 @@ class _SignupPageState extends State<SignupPage> {
                   readOnly: true,
                   onTap: _pickDate,
                   decoration: _inputDecoration(
-                    hint: 'mm/dd/yyyy',
+                    hint: 'dd/mm/yyyy',
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.calendar_today, color: AppColors.textSecondary, size: 22),
                       onPressed: _pickDate,
@@ -180,6 +208,8 @@ class _SignupPageState extends State<SignupPage> {
                 ),
                 const SizedBox(height: 20),
                 _buildInfoBox(),
+                const SizedBox(height: 20),
+                _buildGdprConsent(),
                 const SizedBox(height: 32),
                 SizedBox(
                   height: 54,
@@ -302,6 +332,57 @@ class _SignupPageState extends State<SignupPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildGdprConsent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() {
+            _gdprConsent = !_gdprConsent;
+            if (_gdprConsent) _gdprError = false;
+          }),
+          borderRadius: BorderRadius.circular(8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Checkbox(
+                value: _gdprConsent,
+                onChanged: (v) => setState(() {
+                  _gdprConsent = v ?? false;
+                  if (_gdprConsent) _gdprError = false;
+                }),
+                activeColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    'I agree that my username and test details will be displayed publicly within the app to facilitate test date swaps. My full name will not be shown publicly. See our Privacy Policy for details.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: AppColors.textPrimary.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_gdprError)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 4),
+            child: Text(
+              'You must agree to the privacy consent to continue.',
+              style: TextStyle(fontSize: 12, color: AppColors.error),
+            ),
+          ),
+      ],
     );
   }
 }
