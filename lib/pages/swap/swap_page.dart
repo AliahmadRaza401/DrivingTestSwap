@@ -109,7 +109,7 @@ class _SwapPageState extends State<SwapPage> {
                             ),
                           ),
                           Text(
-                            '${my.date} • ${my.time}',
+                            '${my.lookingFor.isNotEmpty ? my.lookingFor : my.date} • ${my.time}',
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
@@ -163,7 +163,7 @@ class _SwapPageState extends State<SwapPage> {
                             ),
                           ),
                           Text(
-                            '${target.date} • ${target.time}',
+                            '${target.lookingFor.isNotEmpty ? target.lookingFor : target.date} • ${target.time}',
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
@@ -396,7 +396,7 @@ class _SwapPageState extends State<SwapPage> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  post.date,
+                  post.lookingFor.isNotEmpty ? post.lookingFor : post.date,
                   style: const TextStyle(
                     fontSize: 14,
                     color: AppColors.textPrimary,
@@ -421,7 +421,7 @@ class _SwapPageState extends State<SwapPage> {
             if (post.lookingFor.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'Looking for: ${post.lookingFor}',
+                'Preferred dates: ${post.date}',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ],
@@ -567,7 +567,7 @@ class _SwapPageState extends State<SwapPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${post.date} • ${post.time}',
+                        '${post.lookingFor.isNotEmpty ? post.lookingFor : post.date} • ${post.time}',
                         style: TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
@@ -576,7 +576,7 @@ class _SwapPageState extends State<SwapPage> {
                       if (post.lookingFor.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'Looking for: ${post.lookingFor}',
+                          'Preferred dates: ${post.date}',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,

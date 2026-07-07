@@ -1076,7 +1076,7 @@ class _SwapSlotSummary extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${post.date} • ${post.time}',
+            '${post.lookingFor.isNotEmpty ? post.lookingFor : post.date} • ${post.time}',
             style: const TextStyle(
               fontSize: 13,
               color: AppColors.textSecondary,
@@ -1233,7 +1233,7 @@ class _SwapCard extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                date,
+                lookingFor ?? date,
                 style: const TextStyle(
                   fontSize: 14,
                   color: AppColors.textPrimary,
@@ -1262,11 +1262,11 @@ class _SwapCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 13),
                 children: [
                   TextSpan(
-                    text: 'Looking for: ',
+                    text: 'Preferred dates: ',
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                   TextSpan(
-                    text: lookingFor!,
+                    text: date,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w500,

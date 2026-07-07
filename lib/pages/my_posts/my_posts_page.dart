@@ -275,6 +275,8 @@ class _PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final location = post.testCentre;
+    // Booked test date (lookingFor); legacy posts fall back to the date range.
+    final testDate = post.lookingFor.isNotEmpty ? post.lookingFor : post.date;
     final preferredArea = post.preferredArea.isNotEmpty
         ? post.preferredArea
         : null;
@@ -381,7 +383,7 @@ class _PostCard extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                post.date,
+                testDate,
                 style: const TextStyle(
                   fontSize: 14,
                   color: AppColors.textPrimary,
@@ -410,11 +412,11 @@ class _PostCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 13),
                 children: [
                   TextSpan(
-                    text: 'Looking for: ',
+                    text: 'Preferred dates: ',
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                   TextSpan(
-                    text: post.lookingFor,
+                    text: post.date,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w500,

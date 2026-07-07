@@ -334,6 +334,60 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                 ),
               ],
               const SizedBox(height: 20),
+              _buildLabel('Test date'),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _lookingForController,
+                readOnly: true,
+                onTap: _pickLookingForDate,
+                decoration: _inputDecoration(
+                  hint: 'dd/mm/yyyy',
+                  suffixIcon: IconButton(
+                    onPressed: _pickLookingForDate,
+                    icon: Icon(
+                      Icons.calendar_today_outlined,
+                      color: AppColors.textSecondary,
+                      size: 22,
+                    ),
+                  ),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Select your test date'
+                    : null,
+              ),
+              const SizedBox(height: 20),
+              _buildLabel('Test time'),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _timeController,
+                readOnly: true,
+                onTap: _pickTime,
+                decoration: _inputDecoration(
+                  hint: '--:-- --',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      Icons.access_time_rounded,
+                      color: AppColors.textSecondary,
+                      size: 22,
+                    ),
+                    onPressed: _pickTime,
+                  ),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Select time'
+                    : null,
+              ),
+              const SizedBox(height: 28),
+              _buildSectionHeading('Preferred dates'),
+              const SizedBox(height: 4),
+              Text(
+                'The date range you would like to swap into.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 14),
               _buildLabel('Date From'),
               const SizedBox(height: 6),
               TextFormField(
@@ -374,50 +428,6 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              _buildLabel('Time'),
-              const SizedBox(height: 6),
-              TextFormField(
-                controller: _timeController,
-                readOnly: true,
-                onTap: _pickTime,
-                decoration: _inputDecoration(
-                  hint: '--:-- --',
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      Icons.access_time_rounded,
-                      color: AppColors.textSecondary,
-                      size: 22,
-                    ),
-                    onPressed: _pickTime,
-                  ),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Select time'
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              _buildLabel('What are you looking for?'),
-              const SizedBox(height: 6),
-              TextFormField(
-                controller: _lookingForController,
-                readOnly: true,
-                onTap: _pickLookingForDate,
-                decoration: _inputDecoration(
-                  hint: 'Pick an earlier preferred date',
-                  suffixIcon: IconButton(
-                    onPressed: _pickLookingForDate,
-                    icon: Icon(
-                      Icons.calendar_today_outlined,
-                      color: AppColors.textSecondary,
-                      size: 22,
-                    ),
-                  ),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Select the date you are looking for'
-                    : null,
-              ),
               const SizedBox(height: 20),
               _buildLabel('Preferred Area'),
               const SizedBox(height: 6),
@@ -442,7 +452,7 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
                 maxLines: 4,
                 decoration: _inputDecoration(
                   hint:
-                      'e.g. I have Airdrie but would prefer Grangemouth.',
+                      'Write your preferred test centres or anything else, e.g. I have Airdrie but would prefer Grangemouth.',
                 ),
               ),
               const SizedBox(height: 32),
@@ -504,6 +514,17 @@ class _PostAvailabilityPageState extends State<PostAvailabilityPage> {
           height: 1.4,
           color: AppColors.primary.withValues(alpha: 0.95),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeading(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 17,
+        fontWeight: FontWeight.bold,
       ),
     );
   }
