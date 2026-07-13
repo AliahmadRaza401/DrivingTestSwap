@@ -4,6 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import 'chat_service.dart';
+import 'payment_service.dart';
+import 'post_service.dart';
+import 'swap_service.dart';
 import 'user_preferences_service.dart';
 
 /// Firestore collection and field names for user profile.
@@ -369,18 +373,20 @@ class AuthService {
     }
   }
 
-  /// Permanently deletes the current user's account: removes the Firestore
-  /// profile document, then deletes the Firebase Auth user.
+  /// Permanently deletes the current user's account and all associated data:
+  /// swap posts, payments, swaps, conversations (with messages), and the
+  /// Firestore profile document, then deletes the Firebase Auth user.
+  ///
+  /// Data is removed before the Auth user so that if Firebase requires a recent
+  /// login for `user.delete()`, the operation can be safely retried after the
+  /// user logs back in (the data deletion is idempotent).
   /// Returns null on success, or a user-friendly error message on failure.
   static Future<String?> deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) return 'Not signed in.';
     final uid = user.uid;
     try {
-      await _firestore
-          .collection(FirestoreUsers.collection)
-          .doc(uid)
-          .delete();
+      await _deleteUserData(uid);
       await user.delete();
       return null;
     } on FirebaseAuthException catch (e, st) {
@@ -400,6 +406,73 @@ class AuthService {
       return _isConnectionError(e.toString())
           ? _connectionErrorMessage
           : 'Failed to delete account. Please try again.';
+    }
+  }
+
+  /// Deletes all Firestore data belonging to [uid]: swap posts, payments,
+  /// swaps (as initiator or target), conversations (and their messages
+  /// subcollection), and the user profile document.
+  static Future<void> _deleteUserData(String uid) async {
+    // Swap posts created by the user.
+    await _deleteQueryInBatches(
+      _firestore
+          .collection(FirestorePosts.collection)
+          .where(FirestorePosts.userId, isEqualTo: uid),
+    );
+
+    // Payment records.
+    await _deleteQueryInBatches(
+      _firestore
+          .collection(FirestorePayments.collection)
+          .where(FirestorePayments.userId, isEqualTo: uid),
+    );
+
+    // Swaps where the user is the initiator or the target.
+    await _deleteQueryInBatches(
+      _firestore
+          .collection(FirestoreSwaps.collection)
+          .where(FirestoreSwaps.initiatorUserId, isEqualTo: uid),
+    );
+    await _deleteQueryInBatches(
+      _firestore
+          .collection(FirestoreSwaps.collection)
+          .where(FirestoreSwaps.targetUserId, isEqualTo: uid),
+    );
+
+    // Conversations the user participates in, including their messages.
+    final conversations = await _firestore
+        .collection(FirestoreConversations.collection)
+        .where(FirestoreConversations.participantIds, arrayContains: uid)
+        .get();
+    for (final conv in conversations.docs) {
+      await _deleteQueryInBatches(
+        conv.reference.collection(FirestoreMessages.subcollection),
+      );
+      await conv.reference.delete();
+    }
+
+    // User profile document.
+    await _firestore
+        .collection(FirestoreUsers.collection)
+        .doc(uid)
+        .delete();
+  }
+
+  /// Deletes every document matched by [query] in batches (Firestore limits a
+  /// batch to 500 writes), looping until no documents remain.
+  static Future<void> _deleteQueryInBatches(
+    Query<Map<String, dynamic>> query,
+  ) async {
+    const pageSize = 400;
+    while (true) {
+      final snap = await query.limit(pageSize).get();
+      if (snap.docs.isEmpty) break;
+      final batch = _firestore.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      if (snap.docs.length < pageSize) break;
     }
   }
 
