@@ -369,6 +369,40 @@ class AuthService {
     }
   }
 
+  /// Permanently deletes the current user's account: removes the Firestore
+  /// profile document, then deletes the Firebase Auth user.
+  /// Returns null on success, or a user-friendly error message on failure.
+  static Future<String?> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return 'Not signed in.';
+    final uid = user.uid;
+    try {
+      await _firestore
+          .collection(FirestoreUsers.collection)
+          .doc(uid)
+          .delete();
+      await user.delete();
+      return null;
+    } on FirebaseAuthException catch (e, st) {
+      _logFirebaseAuthError('deleteAccount', e, st);
+      if (e.code == 'requires-recent-login') {
+        return 'For your security, please log out and log back in, then try deleting your account again.';
+      }
+      if (_isConnectionError(e.message)) return _connectionErrorMessage;
+      return e.message ?? 'Failed to delete account. Please try again.';
+    } on FirebaseException catch (e, st) {
+      _logFirebaseError('deleteAccount', e, st);
+      return _isConnectionError(e.message)
+          ? _connectionErrorMessage
+          : (e.message ?? 'Failed to delete account. Please try again.');
+    } catch (e, st) {
+      _logError('deleteAccount', e, st);
+      return _isConnectionError(e.toString())
+          ? _connectionErrorMessage
+          : 'Failed to delete account. Please try again.';
+    }
+  }
+
   /// Fetches the current user's profile from Firestore (uid, email, fullName, dateOfBirth).
   /// Returns null if not signed in or document is missing.
   static Future<Map<String, String>?> getCurrentUserProfile() async {

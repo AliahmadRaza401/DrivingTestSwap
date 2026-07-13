@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/user_preferences_service.dart';
+import '../../core/utils/toast_util.dart';
 import '../../routes/app_routes.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -115,6 +116,8 @@ class ProfilePage extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               _buildLogOutButton(),
+              const SizedBox(height: 12),
+              _buildDeleteAccountButton(),
               const SizedBox(height: 32),
               Text(
                 'Version ${AppConstants.appVersion} • DriveSwap © 2026',
@@ -306,6 +309,84 @@ class ProfilePage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildDeleteAccountButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: _confirmAndDeleteAccount,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.delete_forever_rounded, size: 22, color: AppColors.error),
+                const SizedBox(width: 10),
+                Text(
+                  'Delete Account',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmAndDeleteAccount() async {
+    final confirm = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This will permanently delete your account and all associated data. '
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    // Show a blocking loader while the account is deleted.
+    Get.dialog(
+      const Center(child: CircularProgressIndicator()),
+      barrierDismissible: false,
+    );
+
+    final error = await AuthService.deleteAccount();
+
+    // Dismiss the loader.
+    if (Get.isDialogOpen ?? false) Get.back();
+
+    if (error != null) {
+      ToastUtil.error(error);
+      return;
+    }
+
+    await UserPreferencesService.clearUserAndLoginState();
+    ToastUtil.success('Your account has been deleted.');
+    Get.offAllNamed(AppRoutes.login);
   }
 }
 
