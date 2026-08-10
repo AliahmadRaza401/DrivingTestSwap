@@ -10,6 +10,7 @@ class AdminMainController extends GetxController {
   static const int paymentsIndex = 6;
   static const int subscriptionsIndex = 7;
   static const int couponsIndex = 8;
+  static const int reportsIndex = 9;
 
   final RxInt currentIndex = 0.obs;
 

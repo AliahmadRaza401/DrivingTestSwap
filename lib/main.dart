@@ -11,11 +11,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-
+  // Stripe is used for payments on Android only. On iOS, digital plans must be
+  // sold through Apple In-App Purchase (StoreKit), so Stripe is not initialized.
+  if (GetPlatform.isAndroid) {
     Stripe.publishableKey = publishableKey;
-  await Stripe.instance.applySettings();
-
-
+    await Stripe.instance.applySettings();
+  }
 
   runApp(const MyApp());
 }

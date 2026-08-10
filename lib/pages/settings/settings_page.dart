@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/theme/app_colors.dart';
+import 'blocked_users_page.dart';
 import 'change_password_page.dart';
 import 'edit_profile_page.dart';
 import 'privacy_policy_page.dart';
@@ -62,6 +63,11 @@ class SettingsPage extends StatelessWidget {
                 icon: Icons.verified_user_outlined,
                 label: 'Security',
                 onTap: () => Get.to(() => const SecurityPage()),
+              ),
+              _SettingsItem(
+                icon: Icons.block_outlined,
+                label: 'Blocked Users',
+                onTap: () => Get.to(() => const BlockedUsersPage()),
               ),
             ],
           ),

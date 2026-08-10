@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/utils/toast_util.dart';
 import '../../routes/app_routes.dart';
+import '../terms/terms_page.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -25,6 +26,8 @@ class _SignupPageState extends State<SignupPage> {
   bool _obscureConfirmPassword = true;
   bool _gdprConsent = false;
   bool _gdprError = false;
+  bool _eulaConsent = false;
+  bool _eulaError = false;
 
   @override
   void dispose() {
@@ -55,7 +58,10 @@ class _SignupPageState extends State<SignupPage> {
     if (!_gdprConsent) {
       setState(() => _gdprError = true);
     }
-    if (!formValid || !_gdprConsent) return;
+    if (!_eulaConsent) {
+      setState(() => _eulaError = true);
+    }
+    if (!formValid || !_gdprConsent || !_eulaConsent) return;
 
     setState(() => _loading = true);
     final error = await AuthService.signUp(
@@ -146,7 +152,7 @@ class _SignupPageState extends State<SignupPage> {
                   },
                 ),
                 const SizedBox(height: 20),
-                _buildLabel('Date of Birth'),
+                _buildLabel('Date of Birth (optional)'),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _dobController,
@@ -159,7 +165,6 @@ class _SignupPageState extends State<SignupPage> {
                       onPressed: _pickDate,
                     ),
                   ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Select date of birth' : null,
                 ),
                 const SizedBox(height: 20),
                 _buildLabel('Password'),
@@ -210,6 +215,8 @@ class _SignupPageState extends State<SignupPage> {
                 _buildInfoBox(),
                 const SizedBox(height: 20),
                 _buildGdprConsent(),
+                const SizedBox(height: 16),
+                _buildEulaConsent(),
                 const SizedBox(height: 32),
                 SizedBox(
                   height: 54,
@@ -322,7 +329,7 @@ class _SignupPageState extends State<SignupPage> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'We verify date of birth to ensure all users are within learner age range.',
+              'Date of birth is optional. If provided, it helps us confirm users are within the learner age range.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.4,
@@ -332,6 +339,76 @@ class _SignupPageState extends State<SignupPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEulaConsent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() {
+            _eulaConsent = !_eulaConsent;
+            if (_eulaConsent) _eulaError = false;
+          }),
+          borderRadius: BorderRadius.circular(8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Checkbox(
+                value: _eulaConsent,
+                onChanged: (v) => setState(() {
+                  _eulaConsent = v ?? false;
+                  if (_eulaConsent) _eulaError = false;
+                }),
+                activeColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'I agree to the Terms of Use (EULA) and Community Guidelines. I understand there is zero tolerance for objectionable content or abusive behaviour.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: AppColors.textPrimary.withValues(alpha: 0.85),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () =>
+                            Get.to(() => const TermsPage(readOnly: true)),
+                        child: const Text(
+                          'Read the terms',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_eulaError)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 4),
+            child: Text(
+              'You must agree to the Terms of Use to continue.',
+              style: TextStyle(fontSize: 12, color: AppColors.error),
+            ),
+          ),
+      ],
     );
   }
 

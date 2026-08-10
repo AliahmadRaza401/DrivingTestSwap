@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/services/chat_service.dart';
+import '../../core/services/moderation_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/moderation_ui.dart';
+import '../../core/utils/toast_util.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({
@@ -36,6 +39,49 @@ class _ChatPageState extends State<ChatPage> {
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     }
     return '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _reportUser() async {
+    final input = await showReportSheet(
+      context,
+      title: 'Report ${widget.otherUserName}',
+    );
+    if (input == null) return;
+    try {
+      await ModerationService.reportContent(
+        reportedUserId: widget.otherUserId,
+        reportedUserName: widget.otherUserName,
+        type: ReportContentType.conversation,
+        conversationId: widget.conversationId,
+        reason: input.reason,
+        details: input.details,
+      );
+      ToastUtil.success(
+        'Thanks for reporting. Our team will review this within 24 hours.',
+      );
+    } catch (e) {
+      ToastUtil.error('Could not submit report. Please try again.');
+    }
+  }
+
+  Future<void> _blockUser() async {
+    final confirmed = await showBlockConfirmDialog(
+      context,
+      userName: widget.otherUserName,
+    );
+    if (!confirmed) return;
+    try {
+      await ModerationService.blockUser(
+        blockedUserId: widget.otherUserId,
+        blockedUserName: widget.otherUserName,
+        contentType: ReportContentType.conversation,
+        conversationId: widget.conversationId,
+      );
+      ToastUtil.success('${widget.otherUserName} has been blocked.');
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      ToastUtil.error('Could not block this user. Please try again.');
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -115,6 +161,40 @@ class _ChatPageState extends State<ChatPage> {
           ],
         ),
         centerTitle: true,
+        actions: [
+          if (!widget.readOnlyMode)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: AppColors.textPrimary),
+              tooltip: 'Report or block',
+              onSelected: (value) {
+                if (value == 'report') _reportUser();
+                if (value == 'block') _blockUser();
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem<String>(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      Icon(Icons.flag_outlined,
+                          size: 20, color: AppColors.textPrimary),
+                      SizedBox(width: 10),
+                      Text('Report user'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'block',
+                  child: Row(
+                    children: [
+                      Icon(Icons.block, size: 20, color: AppColors.error),
+                      SizedBox(width: 10),
+                      Text('Block user'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
       body: Column(
         children: [

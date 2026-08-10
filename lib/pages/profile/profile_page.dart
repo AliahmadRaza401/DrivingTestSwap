@@ -83,6 +83,8 @@ class ProfilePage extends StatelessWidget {
                             ),
                             child: Text(
                               planTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -246,8 +248,23 @@ class ProfilePage extends StatelessWidget {
               children: [
                 Icon(icon, size: 24, color: AppColors.textPrimary),
                 const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
+                // Without a trailing widget the label fills the row so the
+                // chevron sits at the far right. With a trailing widget the
+                // label keeps its natural width and the trailing takes the
+                // remaining space (right-aligned, truncating if too long).
+                if (trailing == null)
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  )
+                else ...[
+                  Text(
                     label,
                     style: const TextStyle(
                       fontSize: 16,
@@ -255,9 +272,15 @@ class ProfilePage extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                ),
-                if (trailing != null) trailing,
-                if (trailing != null) const SizedBox(width: 8),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: trailing,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Icon(
                   Icons.chevron_right_rounded,
                   color: AppColors.textSecondary,

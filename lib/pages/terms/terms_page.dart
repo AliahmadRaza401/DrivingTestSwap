@@ -5,7 +5,12 @@ import '../../core/theme/app_colors.dart';
 import '../../routes/app_routes.dart';
 
 class TermsPage extends StatefulWidget {
-  const TermsPage({super.key});
+  const TermsPage({super.key, this.readOnly = false});
+
+  /// When true the page is opened purely to read the terms (e.g. from a link on
+  /// the signup/login screens): the Accept/Decline footer is hidden and a back
+  /// button is shown instead.
+  final bool readOnly;
 
   @override
   State<TermsPage> createState() => _TermsPageState();
@@ -38,8 +43,15 @@ class _TermsPageState extends State<TermsPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
+        leading: widget.readOnly
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios,
+                    color: AppColors.textPrimary, size: 22),
+                onPressed: () => Get.back(),
+              )
+            : null,
         title: const Text(
-          'Terms & Disclaimer',
+          'Terms & Community Guidelines',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -53,7 +65,9 @@ class _TermsPageState extends State<TermsPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
             child: Text(
-              'Please read to the end to continue',
+              widget.readOnly
+                  ? 'Our terms of use and community guidelines'
+                  : 'Please read to the end to continue',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
@@ -76,6 +90,8 @@ class _TermsPageState extends State<TermsPage> {
                   _bullet(
                     'All swaps must be completed on the official GOV.UK "Change driving test appointment" page. We do not perform the change for you.',
                   ),
+                  const SizedBox(height: 20),
+                  _communityGuidelinesSection(),
                   const SizedBox(height: 20),
                   _dvsaRulesSection(),
                   const SizedBox(height: 20),
@@ -124,52 +140,53 @@ class _TermsPageState extends State<TermsPage> {
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _onDecline(),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('Decline'),
+          if (!widget.readOnly)
+            Container(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => _onAccept(),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.textOnPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _onDecline(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
+                      child: const Text('Decline'),
                     ),
-                    child: const Text('Accept'),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => _onAccept(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.textOnPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Accept'),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -213,6 +230,50 @@ class _TermsPageState extends State<TermsPage> {
                 height: 1.5,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _communityGuidelinesSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.gavel_rounded,
+                  color: AppColors.primary, size: 18),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Community Guidelines (EULA)',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _bullet(
+            'There is zero tolerance for objectionable content or abusive behaviour. Harassment, hate speech, threats, spam, and sexual or otherwise offensive content are strictly prohibited.',
+          ),
+          _bullet(
+            'By creating an account and using this app, you agree to these terms. Anyone who posts objectionable content or abuses others will have that content removed and may have their account terminated.',
+          ),
+          _bullet(
+            'You can report any post or message, or block any user, at any time from within the app. Reports and blocks are reviewed and acted on within 24 hours.',
           ),
         ],
       ),

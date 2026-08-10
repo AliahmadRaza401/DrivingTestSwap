@@ -7,6 +7,7 @@ import 'admin_dashboard_page.dart';
 import 'admin_messages_page.dart';
 import 'admin_payment_overview_page.dart';
 import 'admin_posts_page.dart';
+import 'admin_reports_page.dart';
 import 'admin_settings_page.dart';
 import 'admin_subscription_management_page.dart';
 import 'admin_swaps_page.dart';
@@ -45,6 +46,7 @@ class AdminMainPage extends StatelessWidget {
       AdminPaymentOverviewPage(),
       AdminSubscriptionManagementPage(),
       AdminCouponManagementPage(),
+      AdminReportsPage(),
     ];
 
     const drawerItems = <_AdminDrawerItemData>[
@@ -101,6 +103,12 @@ class AdminMainPage extends StatelessWidget {
         title: 'Coupons',
         subtitle: 'Discount codes and status',
         icon: Icons.confirmation_number_rounded,
+      ),
+      _AdminDrawerItemData(
+        index: AdminMainController.reportsIndex,
+        title: 'Reports',
+        subtitle: 'Flagged content and blocked users',
+        icon: Icons.flag_rounded,
       ),
     ];
 

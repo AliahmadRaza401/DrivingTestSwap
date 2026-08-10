@@ -15,6 +15,7 @@ class SubscriptionPlan {
     required this.isGreenCheck,
     required this.isActive,
     required this.sortOrder,
+    this.appleProductId,
   });
 
   final String id;
@@ -29,6 +30,11 @@ class SubscriptionPlan {
   final bool isGreenCheck;
   final bool isActive;
   final int sortOrder;
+
+  /// Optional explicit App Store Connect product id for this plan (iOS). When
+  /// null the app falls back to a mapping by [durationInMonths]. Free plans
+  /// leave this null and are never sold via In-App Purchase.
+  final String? appleProductId;
 
   int get durationInMonths {
     final match = RegExp(r'(\d+)').firstMatch(period);
@@ -61,6 +67,7 @@ class SubscriptionPlan {
       isGreenCheck: data['isGreenCheck'] as bool? ?? false,
       isActive: data['isActive'] as bool? ?? true,
       sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
+      appleProductId: (data['appleProductId'] as String?)?.trim(),
     );
   }
 
@@ -77,6 +84,7 @@ class SubscriptionPlan {
       'isGreenCheck': isGreenCheck,
       'isActive': isActive,
       'sortOrder': sortOrder,
+      if (appleProductId != null) 'appleProductId': appleProductId,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -111,6 +119,7 @@ class SubscriptionPlan {
     bool? isGreenCheck,
     bool? isActive,
     int? sortOrder,
+    String? appleProductId,
   }) {
     return SubscriptionPlan(
       id: id ?? this.id,
@@ -127,6 +136,7 @@ class SubscriptionPlan {
       isGreenCheck: isGreenCheck ?? this.isGreenCheck,
       isActive: isActive ?? this.isActive,
       sortOrder: sortOrder ?? this.sortOrder,
+      appleProductId: appleProductId ?? this.appleProductId,
     );
   }
 }

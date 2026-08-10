@@ -6,9 +6,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/chat_service.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/moderation_service.dart';
 import '../../core/services/post_service.dart';
 import '../../core/services/swap_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/moderation_ui.dart';
 import '../../core/utils/toast_util.dart';
 import '../../routes/app_routes.dart';
 import '../chat/chat_page.dart';
@@ -30,6 +32,8 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
   double _selectedDistanceFilter = 20;
   Timer? _radiusLoadingTimer;
   final Set<String> _completingSwapIds = <String>{};
+  Set<String> _blockedUserIds = <String>{};
+  StreamSubscription<Set<String>>? _blockedSub;
 
   static String _timeAgo(DateTime dateTime) {
     final diff = DateTime.now().difference(dateTime);
@@ -43,12 +47,67 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
   void initState() {
     super.initState();
     _loadCurrentLocation();
+    _blockedSub = ModerationService.streamBlockedUserIds().listen((ids) {
+      if (!mounted) return;
+      setState(() => _blockedUserIds = ids);
+    });
   }
 
   @override
   void dispose() {
     _radiusLoadingTimer?.cancel();
+    _blockedSub?.cancel();
     super.dispose();
+  }
+
+  Future<void> _reportPost(SwapPost post) async {
+    final input = await showReportSheet(context, title: 'Report this post');
+    if (input == null) return;
+    try {
+      await ModerationService.reportContent(
+        reportedUserId: post.userId,
+        reportedUserName: post.creatorName,
+        type: ReportContentType.post,
+        contentId: post.id,
+        contentText: _postSnapshot(post),
+        reason: input.reason,
+        details: input.details,
+      );
+      ToastUtil.success(
+        'Thanks for reporting. Our team will review this within 24 hours.',
+      );
+    } catch (e) {
+      ToastUtil.error('Could not submit report. Please try again.');
+    }
+  }
+
+  Future<void> _blockPostAuthor(SwapPost post) async {
+    final confirmed = await showBlockConfirmDialog(
+      context,
+      userName: post.creatorName,
+    );
+    if (!confirmed) return;
+    // Optimistically hide their content right away.
+    setState(() => _blockedUserIds = {..._blockedUserIds, post.userId});
+    try {
+      await ModerationService.blockUser(
+        blockedUserId: post.userId,
+        blockedUserName: post.creatorName,
+        contentType: ReportContentType.post,
+        contentId: post.id,
+        contentText: _postSnapshot(post),
+      );
+      ToastUtil.success('${post.creatorName} has been blocked.');
+    } catch (e) {
+      ToastUtil.error('Could not block this user. Please try again.');
+    }
+  }
+
+  static String _postSnapshot(SwapPost post) {
+    final buffer = StringBuffer('${post.testCentre} • ${post.date} ${post.time}');
+    if (post.lookingFor.isNotEmpty) buffer.write(' • Wants: ${post.lookingFor}');
+    if (post.notes.isNotEmpty) buffer.write(' • Notes: ${post.notes}');
+    return buffer.toString();
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -347,6 +406,8 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
                                       : null,
                                   showActions: true,
                                   postForSwap: item.post,
+                                  onReport: () => _reportPost(item.post),
+                                  onBlock: () => _blockPostAuthor(item.post),
                                 ),
                               ),
                             ),
@@ -680,7 +741,9 @@ class _NoticeboardPageState extends State<NoticeboardPage> {
   }
 
   List<_PostWithDistance> _sortedAndFilteredPosts(List<SwapPost> posts) {
-    final items = posts.map((post) {
+    final items = posts
+        .where((post) => !_blockedUserIds.contains(post.userId))
+        .map((post) {
       final location = _currentLocation;
       final hasLocation = location != null && post.hasTestCentreLocation;
       final distanceMiles = hasLocation
@@ -1103,6 +1166,8 @@ class _SwapCard extends StatelessWidget {
     required this.showActions,
     this.notes,
     this.postForSwap,
+    this.onReport,
+    this.onBlock,
   });
 
   final String initials;
@@ -1120,6 +1185,10 @@ class _SwapCard extends StatelessWidget {
 
   /// When set, the Swap button navigates to the swap page with this post.
   final SwapPost? postForSwap;
+
+  /// Moderation callbacks (only provided for other users' posts).
+  final VoidCallback? onReport;
+  final VoidCallback? onBlock;
 
   @override
   Widget build(BuildContext context) {
@@ -1191,6 +1260,42 @@ class _SwapCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onReport != null || onBlock != null)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert,
+                      color: AppColors.textSecondary),
+                  padding: EdgeInsets.zero,
+                  tooltip: 'Report or block',
+                  onSelected: (value) {
+                    if (value == 'report') onReport?.call();
+                    if (value == 'block') onBlock?.call();
+                  },
+                  itemBuilder: (context) => [
+                    if (onReport != null)
+                      const PopupMenuItem<String>(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined,
+                                size: 20, color: AppColors.textPrimary),
+                            SizedBox(width: 10),
+                            Text('Report post'),
+                          ],
+                        ),
+                      ),
+                    if (onBlock != null)
+                      const PopupMenuItem<String>(
+                        value: 'block',
+                        child: Row(
+                          children: [
+                            Icon(Icons.block, size: 20, color: AppColors.error),
+                            SizedBox(width: 10),
+                            Text('Block user'),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 14),

@@ -7,6 +7,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/user_preferences_service.dart';
 import '../../core/utils/toast_util.dart';
 import '../../routes/app_routes.dart';
+import '../terms/terms_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -201,6 +202,8 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                   ),
                 ),
+                const SizedBox(height: 16),
+                _buildTermsNotice(),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -276,6 +279,35 @@ class _LoginPageState extends State<LoginPage> {
             height: 1.4,
           ),
           textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTermsNotice() {
+    return Column(
+      children: [
+        Text(
+          'By logging in, you agree to our Terms of Use (EULA) and Community Guidelines, including zero tolerance for objectionable content or abusive behaviour.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            height: 1.4,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: () => Get.to(() => const TermsPage(readOnly: true)),
+          child: const Text(
+            'Read the terms',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.underline,
+            ),
+          ),
         ),
       ],
     );

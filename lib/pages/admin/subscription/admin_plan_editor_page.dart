@@ -24,6 +24,7 @@ class _AdminPlanEditorPageState extends State<AdminPlanEditorPage> {
   late final TextEditingController _featuresController;
   late final TextEditingController _savePercentController;
   late final TextEditingController _sortOrderController;
+  late final TextEditingController _appleProductIdController;
 
   late bool _popular;
   late bool _isGreenCheck;
@@ -58,6 +59,9 @@ class _AdminPlanEditorPageState extends State<AdminPlanEditorPage> {
     _sortOrderController = TextEditingController(
       text: (plan?.sortOrder ?? 0).toString(),
     );
+    _appleProductIdController = TextEditingController(
+      text: plan?.appleProductId ?? '',
+    );
     _popular = plan?.popular ?? false;
     _isGreenCheck = plan?.isGreenCheck ?? false;
     _isActive = plan?.isActive ?? true;
@@ -77,6 +81,7 @@ class _AdminPlanEditorPageState extends State<AdminPlanEditorPage> {
     _featuresController.dispose();
     _savePercentController.dispose();
     _sortOrderController.dispose();
+    _appleProductIdController.dispose();
     super.dispose();
   }
 
@@ -130,6 +135,14 @@ class _AdminPlanEditorPageState extends State<AdminPlanEditorPage> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 ),
+                _field(
+                  _appleProductIdController,
+                  'Apple Product ID (iOS)',
+                  required: false,
+                  hint: 'e.g. com.softsolvix.drivingtestswap.monthly',
+                ),
+                _iosPricingNote(),
+                const SizedBox(height: 12),
                 // _field(_currencyController, 'Currency'),
                 _field(
                   _featuresController,
@@ -219,6 +232,38 @@ class _AdminPlanEditorPageState extends State<AdminPlanEditorPage> {
     }
   }
 
+  Widget _iosPricingNote() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'The Price above is used on Android (Stripe). On iOS the price is '
+              'set in App Store Connect and shown from Apple — link this plan to '
+              'its Apple product by entering the Product ID above. Leave the '
+              'Product ID empty for free plans (price 0).',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _field(
     TextEditingController controller,
     String label, {
@@ -293,6 +338,9 @@ class _AdminPlanEditorPageState extends State<AdminPlanEditorPage> {
         isGreenCheck: _isGreenCheck,
         isActive: _isActive,
         sortOrder: sortOrder,
+        appleProductId: _appleProductIdController.text.trim().isEmpty
+            ? null
+            : _appleProductIdController.text.trim(),
       ),
     );
   }

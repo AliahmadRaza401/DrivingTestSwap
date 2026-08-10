@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 
 import '../../core/services/subscription_plan_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../settings/privacy_policy_page.dart';
+import '../terms/terms_page.dart';
 import 'controllers/choose_plan_controller.dart';
 
 class ChoosePlanPage extends GetView<ChoosePlanController> {
@@ -38,6 +40,8 @@ class ChoosePlanPage extends GetView<ChoosePlanController> {
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: _PlanCard(
                                   data: plan,
+                                  priceText:
+                                      controller.displayPriceForPlan(plan),
                                   isSelected:
                                       controller.selectedIndex.value == index,
                                   onTap: () => controller.selectPlan(index),
@@ -45,7 +49,7 @@ class ChoosePlanPage extends GetView<ChoosePlanController> {
                               );
                             }),
                             if (controller.plans.isEmpty) _buildEmptyState(),
-                            if (selectedPlan != null) ...[
+                            if (selectedPlan != null && !controller.isIos) ...[
                               const SizedBox(height: 4),
                               _buildCouponCard(),
                               const SizedBox(height: 16),
@@ -513,7 +517,7 @@ class ChoosePlanPage extends GetView<ChoosePlanController> {
                   : Text(
                       plan == null
                           ? 'No plans available'
-                          : 'Continue with ${plan.title} – ${controller.formattedFinalPrice}',
+                          : 'Continue with ${plan.title} – ${controller.checkoutPriceLabel}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -538,11 +542,70 @@ class ChoosePlanPage extends GetView<ChoosePlanController> {
               child: const Text('Public View'),
             ),
           ),
+          if (controller.isIos) ...[
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: controller.isSubmitting.value
+                  ? null
+                  : controller.restorePurchases,
+              child: const Text('Restore Purchases'),
+            ),
+          ],
           const SizedBox(height: 14),
           Text(
-            'Secure payment · Cancel anytime for monthly plans',
+            controller.isIos
+                ? 'Billed through the App Store · Manage or cancel anytime in Settings'
+                : 'Secure payment · Cancel anytime for monthly plans',
+            textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
+          if (controller.isIos) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Payment is charged to your Apple Account at confirmation of purchase. '
+              'The subscription renews automatically for the same price and period '
+              'unless cancelled at least 24 hours before the current period ends. '
+              'Manage or cancel in your App Store account settings.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.4,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () => Get.to(() => const TermsPage(readOnly: true)),
+                  child: const Text(
+                    'Terms of Use',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+                const Text('   ·   ',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                GestureDetector(
+                  onTap: () => Get.to(() => const PrivacyPolicyPage()),
+                  child: const Text(
+                    'Privacy Policy',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -552,11 +615,13 @@ class ChoosePlanPage extends GetView<ChoosePlanController> {
 class _PlanCard extends StatelessWidget {
   const _PlanCard({
     required this.data,
+    required this.priceText,
     required this.isSelected,
     required this.onTap,
   });
 
   final SubscriptionPlan data;
+  final String priceText;
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -667,7 +732,7 @@ class _PlanCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      data.price.startsWith('£') ? data.price : '£${data.price}',
+                      priceText,
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,

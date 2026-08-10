@@ -26,6 +26,8 @@ abstract class FirestoreUsers {
   static const String subscriptionPeriod = 'subscriptionPeriod';
   static const String subscribedAt = 'subscribedAt';
   static const String subscriptionExpiresAt = 'subscriptionExpiresAt';
+  // Moderation: user ids this user has blocked (their content is hidden).
+  static const String blockedUserIds = 'blockedUserIds';
 }
 
 /// Current subscription status for display (plan name and expiry).

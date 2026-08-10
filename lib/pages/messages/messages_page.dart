@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/chat_service.dart';
+import '../../core/services/moderation_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../chat/chat_page.dart';
 
@@ -36,7 +37,11 @@ class MessagesPage extends StatelessWidget {
           ),
         ),
       ),
-      body: StreamBuilder<List<ConversationSummary>>(
+      body: StreamBuilder<Set<String>>(
+        stream: ModerationService.streamBlockedUserIds(),
+        builder: (context, blockedSnapshot) {
+          final blockedIds = blockedSnapshot.data ?? <String>{};
+          return StreamBuilder<List<ConversationSummary>>(
         stream: ChatService.streamMyConversations(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -89,7 +94,9 @@ class MessagesPage extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final list = snapshot.data ?? [];
+          final list = (snapshot.data ?? [])
+              .where((c) => !blockedIds.contains(c.otherUserId))
+              .toList();
           if (list.isEmpty) {
             return Center(
               child: Padding(
@@ -120,6 +127,8 @@ class MessagesPage extends StatelessWidget {
                 )),
               );
             },
+          );
+        },
           );
         },
       ),

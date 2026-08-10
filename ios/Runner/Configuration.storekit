@@ -1,0 +1,64 @@
+{
+  "identifier" : "DTSWAP-STOREKIT",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_locale" : "en_GB",
+    "_storefront" : "GBR"
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "20000001",
+      "localizations" : [],
+      "name" : "Driving Test Swap Membership",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "20000002",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Monthly membership — instant swap alerts and search",
+              "displayName" : "Monthly",
+              "locale" : "en_GB"
+            }
+          ],
+          "productID" : "com.softsolvix.drivingtestswap.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly",
+          "subscriptionGroupID" : "20000001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "20000003",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "3-month membership — best value for most learners",
+              "displayName" : "3 Months",
+              "locale" : "en_GB"
+            }
+          ],
+          "productID" : "com.softsolvix.drivingtestswap.3months",
+          "recurringSubscriptionPeriod" : "P3M",
+          "referenceName" : "3 Months",
+          "subscriptionGroupID" : "20000001",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
